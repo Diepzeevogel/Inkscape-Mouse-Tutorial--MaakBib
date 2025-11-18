@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Inkscape Les 1: Navigeren</title>
+    <link rel="stylesheet" href="src/style.css">
+      <!-- Font Awesome for mouse/interaction icons in the tutorial panel -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  </head>
+  <body>
+    <div id="toolbar">
+      <div class="brand">
+        <img src="assets/branding/MaakBib_Logo_LeftRight.svg" alt="MaakBib Logo" style=" vertical-align: middle;">
+        Inkscape Les 1: Navigeren
+      </div>
+      <div class="buttons">
+        <!-- Top controls removed for this lesson — navigation is via the left toolbar and instructions -->
+      </div>
+    </div>
+
+    <div id="app">
+      <div id="leftToolbar">
+        <!-- Group 1: select, node, booleans -->
+        <button class="tool-btn active" id="tool-select" title="Select" aria-label="Select tool" type="button"><img src="assets/icons/tool-pointer.svg" alt="Select"></button>
+        <button class="tool-btn" id="tool-node" title="Node" aria-label="Node tool" type="button"><img src="assets/icons/tool-node-editor.svg" alt="Node"></button>
+        <button class="tool-btn" id="tool-booleans" title="Booleans" aria-label="Boolean operations" type="button"><img src="assets/icons/draw-booleans.svg" alt="Booleans"></button>
+        <div class="tool-sep"></div>
+
+        <!-- Group 2: shapes -->
+        <button class="tool-btn" id="tool-rect" title="Rectangle" aria-label="Rectangle" type="button"><img src="assets/icons/draw-rectangle.svg" alt="Rectangle"></button>
+        <button class="tool-btn" id="tool-ellipse" title="Ellipse" aria-label="Ellipse" type="button"><img src="assets/icons/draw-ellipse.svg" alt="Ellipse"></button>
+        <button class="tool-btn" id="tool-star" title="Star" aria-label="Star" type="button"><img src="assets/icons/draw-polygon-star.svg" alt="Star"></button>
+        <button class="tool-btn" id="tool-spiral" title="Spiral" aria-label="Spiral" type="button"><img src="assets/icons/draw-spiral.svg" alt="Spiral"></button>
+        <div class="tool-sep"></div>
+
+        <!-- Group 3: draw/text -->
+        <button class="tool-btn" id="tool-pen" title="Pen" aria-label="Pen tool" type="button"><img src="assets/icons/draw-path.svg" alt="Pen"></button>
+        <button class="tool-btn" id="tool-text" title="Text" aria-label="Text tool" type="button"><img src="assets/icons/draw-text.svg" alt="Text"></button>
+        <div class="tool-sep"></div>
+
+        <!-- Group 4: spray/eraser/measure/zoom -->
+        <!-- Removed spray and eraser for the lesson — they won't be interactive -->
+        <button class="tool-btn" id="tool-measure" title="Measure" aria-label="Measure tool" type="button"><img src="assets/icons/tool-measure.svg" alt="Measure"></button>
+        <button class="tool-btn" id="tool-zoom" title="Zoom" aria-label="Zoom tool" type="button"><img src="assets/icons/zoom.svg" alt="Zoom"></button>
+      </div>
+      <canvas id="c"></canvas>
+      <aside id="panel">
+        <h3>Opdracht</h3>
+        <p>Selecteer de helm en sleep deze op het hoofd van het uiltje.</p>
+        <ul>
+          <li><i class="fa-solid fa-mouse"></i>&nbsp; Linker muisknop: selecteren</li>
+          <li><i class="fa-solid fa-arrows-up-down-left-right"></i>&nbsp; Klik en sleep om te verplaatsen</li>
+          <li><i class="fa-solid fa-hand-pointer"></i>&nbsp; Laat los om te plaatsen</li>
+        </ul>
+      </aside>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.2.4/dist/fabric.min.js"></script>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

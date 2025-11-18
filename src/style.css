@@ -1,0 +1,52 @@
+:root{
+  --toolbar-h:48px;
+  --panel-w:300px;
+  --bg:#f4f6f8;
+  --panel-bg:#ffffff;
+}
+*{box-sizing:border-box;font-family:Inter,system-ui,Arial,Helvetica,sans-serif}
+html,body{height:100%;margin:0}
+body{background:var(--bg);font-family:'Montserrat',sans-serif}
+#toolbar{height:var(--toolbar-h);background:#f5eee4;color:#263238;display:flex;align-items:center;justify-content:space-between;padding:12px}
+.brand{font-weight:600}
+.brand img {
+  height: 40px; /* Set brand logo height to 40px */
+  margin-right: 20px; /* Add 20px spacing to the right of the logo */
+}
+.buttons button{margin-left:8px}
+#app{display:flex;height:calc(100vh - var(--toolbar-h))}
+#leftToolbar{width:56px;background:#fff;display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-right:1px solid #e6e9ed}
+.tool-btn{outline: none}
+.tool-btn:focus{box-shadow:0 0 0 2px rgba(0,120,212,0.14);border-color:#d0d8e8}
+.tool-btn{width:40px;height:40px;border-radius:6px;border:1px solid transparent;background:transparent;display:flex;align-items:center;justify-content:center;margin:0;cursor:pointer}
+.tool-btn img{width:20px;height:20px;display:block;filter:grayscale(0.15)}
+#welcomeOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:10000;pointer-events:none}
+#welcomeOverlay .welcome-card{pointer-events:auto;min-width:320px;max-width:560px;background:linear-gradient(180deg,#fff,#fafbfd);border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.25);display:flex;gap:12px;align-items:center}
+#welcomeOverlay .welcome-card img{height:48px}
+#welcomeOverlay h2{margin:0 0 6px 0;font-size:18px}
+#welcomeOverlay p{margin:0;font-size:14px;color:#334155}
+#welcomeOverlay .hint{font-size:13px;color:#334155;margin-top:8px}
+#welcomeOverlay .start-btn{margin-left:auto;background:#1a73e8;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+#welcomeOverlay .start-btn:hover{background:#165fc2}
+.tool-btn.active{background:#e9f0ff;border-color:#c7dafb}
+.tool-btn:hover{background:#f3f6fb;border-color:#e0e6ef}
+.tool-sep{height:1px;width:32px;background:#e6e9ed;margin:8px 0}
+.tool-btn[disabled]{opacity:0.45;cursor:not-allowed;pointer-events:none}
+.tool-btn[disabled]:hover{background:transparent;border-color:transparent}
+#leftToolbar .tool-sep{width:28px;opacity:0.6}
+.tool-sep{height:1px;width:32px;background:#e6e9ed;margin:8px 0}
+#c{flex:1;display:block;min-width:0;height:100%;background:white;margin-right:var(--panel-w)}
+#panel{width:var(--panel-w);background:#f5eee4;padding:12px;border-left:1px solid #e6e9ed;position:absolute;right:0;top:0;height:100%;z-index:10;color:#263238}
+#panel h3{margin-top:0}
+.hint{margin-top:12px;padding:8px;background:#fff7cc;border-radius:6px;font-size:14px}
+button{padding:6px 10px;border-radius:6px;border:1px solid #d0d4da;background:white;cursor:pointer}
+button:active{transform:translateY(1px)}
+canvas{background-color:white;background-image:none}
+
+/* make touch interactions not try to scroll the page */
+canvas{touch-action:none}
+
+#tool-select {
+  position: relative;
+  z-index: 10;
+}
