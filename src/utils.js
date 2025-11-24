@@ -9,9 +9,11 @@ export async function findGroupFragments(url, identifiers) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'image/svg+xml');
   const results = {};
+  // Collect root-level <defs> and <style> so fragments keep their styling
+  const rootStyleDefs = Array.from(doc.querySelectorAll('defs, style')).map(n => n.outerHTML).join('');
   for (const id of identifiers) {
     const el = doc.getElementById(id);
-    if (el) results[id] = el.outerHTML;
+    if (el) results[id] = rootStyleDefs + el.outerHTML;
   }
   const groups = Array.from(doc.getElementsByTagName('g'));
   for (const g of groups) {
@@ -22,7 +24,7 @@ export async function findGroupFragments(url, identifiers) {
       if (results[id]) continue;
       const low = id.toLowerCase();
       if ((label && label.toLowerCase().includes(low)) || (title && title.toLowerCase().includes(low))) {
-        results[id] = g.outerHTML;
+        results[id] = rootStyleDefs + g.outerHTML;
       }
     }
   }
