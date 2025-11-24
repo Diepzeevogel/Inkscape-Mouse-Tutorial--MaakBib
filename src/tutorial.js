@@ -2,7 +2,7 @@ import { canvas } from './canvas.js';
 import { rectsOverlap, findGroupFragments, makeFabricGroupFromFragment } from './utils.js';
 
 let tutorialStarted = false;
-let tutorialObjects = { owl: null, helmet: null, owlWithHelmet: null };
+let tutorialObjects = { owl: null, helmet: null, helmetTarget: null, owlWithHelmet: null, helmetAnimId: null };
 
 export async function startTutorial() {
   if (tutorialStarted) return;
@@ -57,19 +57,35 @@ export async function startTutorial() {
   } else {
     console.warn('[tutorial] Owl group not added to canvas');
   }
+    if (helmetTargetGroup) {
+    helmetTargetGroup.set({ selectable: false, evented: false, visible: true, opacity: 0 });
+    canvas.add(helmetTargetGroup);
+    tutorialObjects.helmetTarget = helmetTargetGroup;
+    console.log('[tutorial] Added Helmet_Target group to canvas (visible):', helmetTargetGroup);
+    // Start looping opacity animation (0 -> 1 -> 0) over 3 seconds
+    (function startHelmetTargetAnimation() {
+      const duration = 3000;
+      const t0 = performance.now();
+      function step() {
+        const now = performance.now();
+        const t = ((now - t0) % duration) / duration; // 0..1
+        const v = 0.5 * (1 - Math.cos(2 * Math.PI * t));
+        helmetTargetGroup.opacity = v;
+        helmetTargetGroup.setCoords();
+        canvas.requestRenderAll();
+        tutorialObjects.helmetAnimId = fabric.util.requestAnimFrame(step);
+      }
+      tutorialObjects.helmetAnimId = fabric.util.requestAnimFrame(step);
+    })();
+  } else {
+    console.warn('[tutorial] Helmet_Target group not added to canvas');
+  }
   if (helmetGroup) {
     helmetGroup.set({ selectable: true, evented: true, visible: true });
     canvas.add(helmetGroup);
     console.log('[tutorial] Added Helmet group to canvas:', helmetGroup);
   } else {
     console.warn('[tutorial] Helmet group not added to canvas');
-  }
-  if (helmetTargetGroup) {
-    helmetTargetGroup.set({ selectable: false, evented: false, visible: false });
-    canvas.add(helmetTargetGroup);
-    console.log('[tutorial] Added Helmet_Target group to canvas (invisible):', helmetTargetGroup);
-  } else {
-    console.warn('[tutorial] Helmet_Target group not added to canvas');
   }
   if (owlWithHelmetGroup) {
     owlWithHelmetGroup.set({ selectable: false, evented: false, visible: false });
@@ -86,10 +102,17 @@ export async function startTutorial() {
     const hb = helmetGroup.getBoundingRect(true);
     const tb = helmetTargetGroup.getBoundingRect(true);
     const dist = Math.sqrt(Math.pow(hb.left - tb.left, 2) + Math.pow(hb.top - tb.top, 2));
-    if (dist < 10) {
+    if (dist < 15) {
       if (owlGroup) canvas.remove(owlGroup);
       if (helmetGroup) canvas.remove(helmetGroup);
-      if (helmetTargetGroup) canvas.remove(helmetTargetGroup);
+      if (helmetTargetGroup) {
+        // stop animation if running
+        if (tutorialObjects.helmetAnimId) {
+          try { cancelAnimationFrame(tutorialObjects.helmetAnimId); } catch (e) { }
+          tutorialObjects.helmetAnimId = null;
+        }
+        canvas.remove(helmetTargetGroup);
+      }
       if (owlWithHelmetGroup) {
         owlWithHelmetGroup.visible = true;
         owlWithHelmetGroup.setCoords();
@@ -112,8 +135,7 @@ export async function startTutorial() {
             btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
             btn.innerHTML = '<i class="fa-solid fa-arrow-right" style="font-size:2.5em;color:white;"></i>';
             btn.onclick = function() {
-              // Placeholder: move to next tutorial logic
-              alert('Next tutorial!');
+              startSecondTutorial();
             };
             panel.appendChild(btn);
           }
@@ -124,4 +146,85 @@ export async function startTutorial() {
 }
 
 // Panel instructions are now set in index.html
+
+// --- Second tutorial: shift-select and drag to toolbox ---
+async function startSecondTutorial() {
+  // Disable marquee box-selection so user must Shift+click to multi-select
+  if (canvas) canvas.selection = false;
+
+  const url = 'assets/tutorials/shift_select.svg';
+  const ids = ['Wrench', 'Screwdriver', 'Saw', 'Pencil', 'Toolbox'];
+  const found = await findGroupFragments(url, ids);
+  const groups = await Promise.all(ids.map(id => makeFabricGroupFromFragment(found[id] || '')));
+
+  // Add all groups to the right side of the canvas; toolbox will be non-selectable
+  const added = [];
+  const margin = 40;
+  const baseX = canvas.getWidth() * 0.6; // place on right side
+  let offsetY = 80;
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const g = groups[i];
+    if (!g) continue;
+    // Make toolbox non-selectable and keep it stationary
+    if (id === 'Toolbox') {
+      g.set({ selectable: false, evented: false, visible: true });
+      // place toolbox near right edge center
+      g.left = baseX + 120;
+      g.top = canvas.getHeight() / 2 - 80;
+      canvas.add(g);
+      continue;
+    }
+    g.set({ selectable: true, evented: true, visible: true });
+    // position items in a column on the right
+    g.left = baseX + margin;
+    g.top = offsetY;
+    offsetY += (g.getBoundingRect(true).height || 80) + 20;
+    canvas.add(g);
+    added.push(g);
+  }
+
+  canvas.requestRenderAll();
+
+  const totalToSelect = added.length;
+  let isDragging = false;
+
+  function pointerOverToolbox(e) {
+    const toolboxEl = document.getElementById('leftToolbar') || document.getElementById('toolbar');
+    if (!toolboxEl || !e) return false;
+    const rect = toolboxEl.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function onObjectMoving(e) {
+    isDragging = true;
+  }
+
+  async function onMouseUp(opt) {
+    const e = opt && opt.e;
+    if (!isDragging || !e) { isDragging = false; return; }
+    const active = canvas.getActiveObjects();
+    if (!active || active.length !== totalToSelect) { isDragging = false; return; }
+    // check pointer over toolbox area
+    if (pointerOverToolbox(e)) {
+      // remove selected objects
+      active.forEach(o => canvas.remove(o));
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      // cleanup
+      canvas.off('object:moving', onObjectMoving);
+      canvas.off('mouse:up', onMouseUp);
+      // restore box selection to previous default
+      canvas.selection = true;
+      // Move on: here we simply log and could start next tutorial
+      console.info('[tutorial] Collected all items into toolbox — moving to next tutorial');
+    }
+    isDragging = false;
+  }
+
+  canvas.on('object:moving', onObjectMoving);
+  canvas.on('mouse:up', onMouseUp);
+}
 
