@@ -35,7 +35,7 @@ export const ZOOM = {
   MIN: 0.25,
   MAX: 6,
   DEFAULT: 1,
-  REQUIRED_FOR_BUTTON: 3 // 50% of MAX
+  REQUIRED_FOR_BUTTON: 2
 };
 
 // Layout Positions (relative to canvas)
