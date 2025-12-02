@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 111.21 71.56">
+  <defs>
+    <style>
+      .screwdriver-handle { fill: #f7b133; stroke: #3b3734; stroke-width: 1.5; }
+      .screwdriver-tip { fill: #8b9398; stroke: #3b3734; stroke-width: 1.5; }
+      .screwdriver-accent { fill: #ca9232; }
+    </style>
+  </defs>
+  <g id="Layer_1">
+    <g id="Screwdriver">
+      <!-- Handle -->
+      <path class="screwdriver-handle" d="M20,25 L60,25 C65,25 70,30 70,35 L70,37 C70,42 65,47 60,47 L20,47 C15,47 10,42 10,37 L10,35 C10,30 15,25 20,25 Z"/>
+      
+      <!-- Handle accent lines -->
+      <line class="screwdriver-accent" x1="25" y1="25" x2="25" y2="47" stroke="#ca9232" stroke-width="1"/>
+      <line class="screwdriver-accent" x1="35" y1="25" x2="35" y2="47" stroke="#ca9232" stroke-width="1"/>
+      <line class="screwdriver-accent" x1="45" y1="25" x2="45" y2="47" stroke="#ca9232" stroke-width="1"/>
+      <line class="screwdriver-accent" x1="55" y1="25" x2="55" y2="47" stroke="#ca9232" stroke-width="1"/>
+      
+      <!-- Tip/shaft -->
+      <rect class="screwdriver-tip" x="70" y="33" width="25" height="6"/>
+      
+      <!-- Flathead tip -->
+      <path class="screwdriver-tip" d="M95,33 L101,34.5 L101,37.5 L95,39 Z"/>
+      
+      <!-- Small highlight on handle -->
+      <ellipse fill="rgba(255,255,255,0.3)" cx="30" cy="30" rx="8" ry="4"/>
+    </g>
+  </g>
+</svg>

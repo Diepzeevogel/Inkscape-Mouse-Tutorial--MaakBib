@@ -59,7 +59,8 @@ export const STYLE = {
 export const ASSETS = {
   LESSON_1_SVG: 'assets/tutorials/les1.svg',
   LESSON_2_SVG: 'assets/tutorials/les2.svg',
-  LESSON_3_SVG: 'assets/tutorials/les3.svg'
+  LESSON_3_SVG: 'assets/tutorials/les3.svg',
+  LESSON_4_SVG: 'assets/tutorials/les4.svg'
 };
 
 // SVG Element IDs
@@ -85,8 +86,37 @@ export const SVG_IDS = {
     START_BUTTON: 'start',
     MAIN: 'main',
     GEAR: 'gear'
+  },
+  LESSON_4: {
+    SCREWDRIVER: 'Screwdriver',
+    HANDLE: 'Handle',
+    TOP: 'Top'
   }
 };
+
+// Color Palette (from MaakBib palette)
+export const COLOR_PALETTE = [
+  { r: 255, g: 0, b: 0, name: 'Snijden' },
+  { r: 0, g: 0, b: 255, name: 'Graveren' },
+  { r: 0, g: 0, b: 0, name: 'Rasteren' },
+  { r: 234, g: 77, b: 100, name: 'Maakbib Rood 1' },
+  { r: 190, g: 32, b: 51, name: 'Maakbib Rood 2' },
+  { r: 255, g: 245, b: 223, name: 'Maakbib Geel 1' },
+  { r: 255, g: 232, b: 174, name: 'Maakbib Geel 2' },
+  { r: 250, g: 180, b: 0, name: 'Maakbib Geel 3' },
+  { r: 203, g: 146, b: 49, name: 'Maakbib Geel 4' },
+  { r: 180, g: 132, b: 49, name: 'Maakbib Geel 5' },
+  { r: 234, g: 102, b: 19, name: 'Maakbib Geel 6' },
+  { r: 184, g: 133, b: 104, name: 'Maakbib Bruin' },
+  { r: 159, g: 213, b: 220, name: 'Maakbib Blauw 1' },
+  { r: 98, g: 155, b: 211, name: 'Maakbib Blauw 2' },
+  { r: 82, g: 132, b: 196, name: 'Maakbib Blauw 3' },
+  { r: 0, g: 97, b: 156, name: 'Maakbib Blauw 4' },
+  { r: 52, g: 96, b: 127, name: 'Maakbib Blauw 5' },
+  { r: 38, g: 50, b: 56, name: 'Maakbib Blauw 6' },
+  { r: 59, g: 55, b: 52, name: 'Maakbib Grijs' },
+  { r: 175, g: 175, b: 175, name: 'Maakbib Grijs 2' }
+];
 
 // Inkscape Transform Mode Constants
 export const TRANSFORM_MODE = {

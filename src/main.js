@@ -1,6 +1,7 @@
 import { initCanvas, centerCanvas, canvas } from './canvas.js';
 import { installWelcomeOverlay, createSelectOverlayButton } from './overlay.js';
 import { startTutorial, startTutorialDirect, startSecondTutorial, prepareLesson2State, startThirdTutorial } from './tutorial.js';
+import { startLesson4, cleanupLesson4 } from './Lesson4Refactored.js';
 
 // Device detection - check for desktop/laptop with mouse
 function isDesktopWithMouse() {
@@ -128,7 +129,8 @@ document.body.appendChild(selectButtonOverlay);
 const lessons = [
   { id: 1, title: 'Les 1', icon: 'assets/icons/tutorial_icons/les1.svg' },
   { id: 2, title: 'Les 2', icon: 'assets/icons/tutorial_icons/les2.svg' },
-  { id: 3, title: 'Les 3', icon: 'assets/icons/tutorial_icons/les3.svg' }
+  { id: 3, title: 'Les 3', icon: 'assets/icons/tutorial_icons/les3.svg' },
+  { id: 4, title: 'Les 4', icon: 'assets/icons/tutorial_icons/les4.svg' }
 ];
 
 function createLessonButtons() {
@@ -197,6 +199,9 @@ function createLessonButtons() {
         if (target === 3) {
           await startThirdTutorial();
         }
+        if (target === 4) {
+          await startLesson4();
+        }
         updateLessonButtons();
         return;
       }
@@ -214,6 +219,8 @@ function createLessonButtons() {
         const objs = canvas.getObjects().slice();
         objs.forEach(o => canvas.remove(o));
         canvas.discardActiveObject();
+        // Clean up any active lesson
+        if (cur === 4) cleanupLesson4();
       } catch (err) {}
 
       if (target === 1) {
@@ -222,8 +229,9 @@ function createLessonButtons() {
         await prepareLesson2State();
         await startSecondTutorial();
       } else if (target === 3) {
-        // clear and start lesson 3
         await startThirdTutorial();
+      } else if (target === 4) {
+        await startLesson4();
       }
       updateLessonButtons();
     });
@@ -391,6 +399,12 @@ async function startFromHash() {
         if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
       } catch (e) {}
       await startThirdTutorial();
+    } else if (lesson === 4) {
+      try {
+        if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
+        if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
+      } catch (e) {}
+      await startLesson4();
     }
   } catch (e) { /* ignore */ }
 }
