@@ -742,11 +742,13 @@ function enterNodeEditMode(obj, canvas) {
 function exitNodeEditMode(obj, canvas) {
   if (!obj) return;
   
-  // Recalculate bounding box based on path data
+  // For paths, just mark dirty and let fabric recalculate naturally
+  // Don't manually recalculate bounding box as it can cause position jumps
   if (obj.path && Array.isArray(obj.path)) {
-    recalculatePathBoundingBox(obj);
+    obj.dirty = true;
+    obj.setCoords();
   } else if (obj.points && Array.isArray(obj.points)) {
-    // Fallback for old polygon editing (shouldn't happen anymore)
+    // For old polygon editing (shouldn't happen anymore)
     recalculateBoundingBox(obj);
   }
   
