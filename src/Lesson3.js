@@ -1,5 +1,5 @@
 /**
- * Lesson 2: Multi-Selection (REFACTORED)
+ * Lesson 3: Multi-Selection (REFACTORED)
  * Demonstrates:
  * - Uses AnimationController for bounce animation
  * - Uses AssetLoader for SVG loading
@@ -17,7 +17,7 @@ import {
   STYLE 
 } from './constants.js';
 
-class Lesson2State {
+class Lesson3State {
   constructor() {
     this.isActive = false;
     this.objects = {
@@ -37,7 +37,7 @@ class Lesson2State {
   }
 }
 
-const lesson2State = new Lesson2State();
+const lesson3State = new Lesson3State();
 let animationController = null;
 
 /**
@@ -45,16 +45,16 @@ let animationController = null;
  */
 function updatePageMetadata() {
   try {
-    document.title = 'Inkscape Les 2: Meerdere objecten selecteren';
+    document.title = 'Inkscape Les 3: Meerdere objecten selecteren';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 2: Meerdere objecten selecteren'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 3: Meerdere objecten selecteren'));
     }
   } catch (error) {
-    console.warn('[Lesson2] Failed to update metadata:', error);
+    console.warn('[Lesson3] Failed to update metadata:', error);
   }
 }
 
@@ -77,7 +77,7 @@ function updateInstructionPanel() {
       <p>Probeer het ook met een selectievak. Klik en sleep een rechthoek om meerdere gereedschappen tegelijk te selecteren.</p>
     `;
   } catch (error) {
-    console.warn('[Lesson2] Failed to update panel:', error);
+    console.warn('[Lesson3] Failed to update panel:', error);
   }
 }
 
@@ -90,7 +90,7 @@ async function loadLessonAssets() {
   
   // Load Lesson 2 tools and toolbox
   const identifiers = ['Toolbox', 'Wrench', 'Screwdriver', 'Saw', 'Pencil', 'Hammer'];
-  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_2_SVG, identifiers);
+  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_3_SVG, identifiers);
   
   return {
     owlWithHelmet: lesson1Assets['Owl_with_Helmet'],
@@ -108,7 +108,7 @@ async function loadLessonAssets() {
  */
 function setupOwlWithHelmet(owlWithHelmet) {
   if (!owlWithHelmet) {
-    console.warn('[Lesson2] Owl with helmet not found');
+    console.warn('[Lesson3] Owl with helmet not found');
     return;
   }
   
@@ -124,11 +124,11 @@ function setupOwlWithHelmet(owlWithHelmet) {
   try {
     owlWithHelmet.tutorialId = 'Owl_with_Helmet';
   } catch (e) {
-    console.warn('[Lesson2] Could not set tutorialId:', e);
+    console.warn('[Lesson3] Could not set tutorialId:', e);
   }
   
-  lesson2State.objects.owlWithHelmet = owlWithHelmet;
-  console.log('[Lesson2] Owl with helmet added to canvas');
+  lesson3State.objects.owlWithHelmet = owlWithHelmet;
+  console.log('[Lesson3] Owl with helmet added to canvas');
 }
 
 /**
@@ -153,11 +153,11 @@ function setupToolbox(toolbox) {
   try { 
     toolbox.tutorialId = 'Toolbox'; 
   } catch (e) {
-    console.warn('[Lesson2] Could not set tutorialId:', e);
+    console.warn('[Lesson3] Could not set tutorialId:', e);
   }
   
-  lesson2State.objects.toolbox = toolbox;
-  console.log('[Lesson2] Toolbox added');
+  lesson3State.objects.toolbox = toolbox;
+  console.log('[Lesson3] Toolbox added');
 }
 
 /**
@@ -194,17 +194,17 @@ function setupTools(tools) {
   // Position tools in circle
   positionToolsInCircle(addedTools);
   
-  lesson2State.objects.tools = addedTools;
-  console.log('[Lesson2] Added', addedTools.length, 'tools');
+  lesson3State.objects.tools = addedTools;
+  console.log('[Lesson3] Added', addedTools.length, 'tools');
 }
 
 /**
  * Position tools in circle around toolbox
  */
 function positionToolsInCircle(tools) {
-  if (!lesson2State.objects.toolbox || tools.length === 0) return;
+  if (!lesson3State.objects.toolbox || tools.length === 0) return;
   
-  const toolboxRect = lesson2State.objects.toolbox.getBoundingRect(true);
+  const toolboxRect = lesson3State.objects.toolbox.getBoundingRect(true);
   const centerX = toolboxRect.left + toolboxRect.width / 2;
   const centerY = toolboxRect.top + toolboxRect.height / 2;
   const radius = Math.max(toolboxRect.width, toolboxRect.height) * LAYOUT.TOOL_CIRCLE_RADIUS_MULTIPLIER + LAYOUT.TOOL_CIRCLE_OFFSET;
@@ -225,10 +225,10 @@ function positionToolsInCircle(tools) {
  * Check if pointer is over toolbox
  */
 function isPointerOverToolbox(event) {
-  if (!event || !lesson2State.objects.toolbox) return false;
+  if (!event || !lesson3State.objects.toolbox) return false;
   
   const pointer = canvas.getPointer(event);
-  const toolboxRect = lesson2State.objects.toolbox.getBoundingRect(true);
+  const toolboxRect = lesson3State.objects.toolbox.getBoundingRect(true);
   
   return (
     pointer.x >= toolboxRect.left && 
@@ -243,21 +243,21 @@ function isPointerOverToolbox(event) {
  */
 function areAllToolsSelected() {
   const activeObjects = canvas.getActiveObjects();
-  const toolCount = lesson2State.objects.tools.length;
+  const toolCount = lesson3State.objects.tools.length;
   
   if (activeObjects.length !== toolCount) return false;
   
   // Verify all active objects are tools
-  return activeObjects.every(obj => lesson2State.objects.tools.includes(obj));
+  return activeObjects.every(obj => lesson3State.objects.tools.includes(obj));
 }
 
 /**
  * Handle successful tool collection
  */
 function handleSuccess() {
-  if (lesson2State.completed) return;
+  if (lesson3State.completed) return;
   
-  lesson2State.completed = true;
+  lesson3State.completed = true;
   
   const selectedTools = canvas.getActiveObjects().slice();
   selectedTools.forEach(tool => canvas.remove(tool));
@@ -265,8 +265,8 @@ function handleSuccess() {
   canvas.requestRenderAll();
   
   // Animate toolbox with double bounce
-  if (lesson2State.objects.toolbox) {
-    animationController.doubleBounce(lesson2State.objects.toolbox, () => {
+  if (lesson3State.objects.toolbox) {
+    animationController.doubleBounce(lesson3State.objects.toolbox, () => {
       showNextButton();
     });
   } else {
@@ -277,7 +277,7 @@ function handleSuccess() {
   cleanupEventHandlers();
   if (canvas) canvas.allowBoxSelection = true;
   
-  console.info('[Lesson2] All tools collected!');
+  console.info('[Lesson3] All tools collected!');
 }
 
 /**
@@ -307,7 +307,7 @@ function showNextButton() {
   
   button.onclick = () => {
     import('./tutorial.js').then(module => {
-      module.startThirdTutorial();
+      module.startLesson4();
     });
   };
   
@@ -318,9 +318,9 @@ function showNextButton() {
  * Handle object moving event
  */
 function handleObjectMoving(event) {
-  if (lesson2State.completed) return;
+  if (lesson3State.completed) return;
   
-  lesson2State.isDragging = true;
+  lesson3State.isDragging = true;
   
   if (!event || !event.e) return;
   if (!areAllToolsSelected()) return;
@@ -334,7 +334,7 @@ function handleObjectMoving(event) {
  * Handle mouse up event
  */
 function handleMouseUp(event) {
-  lesson2State.isDragging = false;
+  lesson3State.isDragging = false;
 }
 
 /**
@@ -363,36 +363,36 @@ function cleanup() {
   
   cleanupEventHandlers();
   
-  if (lesson2State.objects.owlWithHelmet && canvas.contains(lesson2State.objects.owlWithHelmet)) {
-    canvas.remove(lesson2State.objects.owlWithHelmet);
+  if (lesson3State.objects.owlWithHelmet && canvas.contains(lesson3State.objects.owlWithHelmet)) {
+    canvas.remove(lesson3State.objects.owlWithHelmet);
   }
   
-  if (lesson2State.objects.toolbox && canvas.contains(lesson2State.objects.toolbox)) {
-    canvas.remove(lesson2State.objects.toolbox);
+  if (lesson3State.objects.toolbox && canvas.contains(lesson3State.objects.toolbox)) {
+    canvas.remove(lesson3State.objects.toolbox);
   }
   
-  lesson2State.objects.tools.forEach(tool => {
+  lesson3State.objects.tools.forEach(tool => {
     if (tool && canvas.contains(tool)) {
       canvas.remove(tool);
     }
   });
   
-  lesson2State.reset();
+  lesson3State.reset();
   canvas.requestRenderAll();
   
-  console.log('[Lesson2] Cleanup complete');
+  console.log('[Lesson3] Cleanup complete');
 }
 
 /**
  * Start Lesson 2
  */
-export async function startLesson2() {
-  if (lesson2State.isActive) {
-    console.log('[Lesson2] Already active');
+export async function startLesson3() {
+  if (lesson3State.isActive) {
+    console.log('[Lesson3] Already active');
     return;
   }
   
-  lesson2State.isActive = true;
+  lesson3State.isActive = true;
   
   // Disable box selection, keep shift-click
   if (canvas) {
@@ -401,11 +401,11 @@ export async function startLesson2() {
   }
   
   try {
-    history.replaceState(null, '', '#lesson=2');
+    history.replaceState(null, '', '#lesson=3');
     // Trigger hashchange event to update lesson buttons
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   } catch (e) {
-    console.warn('[Lesson2] Could not update URL:', e);
+    console.warn('[Lesson3] Could not update URL:', e);
   }
   
   updatePageMetadata();
@@ -419,12 +419,12 @@ export async function startLesson2() {
     animationController = new AnimationController(canvas);
   }
   
-  console.info('[Lesson2] Loading assets...');
+  console.info('[Lesson3] Loading assets...');
   
   const assets = await loadLessonAssets();
   
-  if (!assets.owlWithHelmet) console.warn('[Lesson2] Owl with helmet not found');
-  if (!assets.toolbox) console.warn('[Lesson2] Toolbox not found');
+  if (!assets.owlWithHelmet) console.warn('[Lesson3] Owl with helmet not found');
+  if (!assets.toolbox) console.warn('[Lesson3] Toolbox not found');
   
   // Setup owl with helmet first (background element)
   if (assets.owlWithHelmet) setupOwlWithHelmet(assets.owlWithHelmet);
@@ -444,20 +444,20 @@ export async function startLesson2() {
   
   canvas.requestRenderAll();
   
-  console.info('[Lesson2] Started successfully');
+  console.info('[Lesson3] Started successfully');
 }
 
 /**
  * Restart Lesson 2
  */
-export async function restartLesson2() {
+export async function restartLesson3() {
   cleanup();
   canvas.getObjects().slice().forEach(obj => canvas.remove(obj));
   canvas.discardActiveObject();
   canvas.requestRenderAll();
   
-  lesson2State.isActive = false;
-  await startLesson2();
+  lesson3State.isActive = false;
+  await startLesson3();
 }
 
-export { cleanup as cleanupLesson2 };
+export { cleanup as cleanupLesson3 };

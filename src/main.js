@@ -1,7 +1,8 @@
 import { initCanvas, centerCanvas, canvas } from './canvas.js';
 import { installWelcomeOverlay, createSelectOverlayButton } from './overlay.js';
-import { startTutorial, startTutorialDirect, startSecondTutorial, prepareLesson2State, startThirdTutorial } from './tutorial.js';
-import { startLesson4, cleanupLesson4 } from './Lesson4Refactored.js';
+import { startTutorial, startTutorialDirect, startLesson2, startLesson3, startLesson4, startThirdTutorial } from './tutorial.js';
+import { startLesson5, cleanupLesson5 } from './Lesson5.js';
+import { shapeDrawingController } from './ShapeDrawingController.js';
 
 // Device detection - check for desktop/laptop with mouse
 function isDesktopWithMouse() {
@@ -100,8 +101,8 @@ const welcomeOverlay = installWelcomeOverlay();
 const selectTool = document.getElementById('tool-select');
 const selectButtonOverlay = createSelectOverlayButton(async () => {
   // If lesson 1 is already active, don't reinitialize the view.
-  const currentMatch = (location.hash || '').match(/lesson=(\d+)/);
-  const currentLesson = currentMatch ? parseInt(currentMatch[1], 10) : null;
+  const currentMatch = (location.hash || '').match(/lesson=([\d.]+)/);
+  const currentLesson = currentMatch ? parseFloat(currentMatch[1]) : null;
   if (currentLesson === 1) {
     // simply remove overlays and highlight the select tool without re-initializing
     if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
@@ -130,7 +131,8 @@ const lessons = [
   { id: 1, title: 'Les 1', icon: 'assets/icons/tutorial_icons/les1.svg' },
   { id: 2, title: 'Les 2', icon: 'assets/icons/tutorial_icons/les2.svg' },
   { id: 3, title: 'Les 3', icon: 'assets/icons/tutorial_icons/les3.svg' },
-  { id: 4, title: 'Les 4', icon: 'assets/icons/tutorial_icons/les4.svg' }
+  { id: 4, title: 'Les 4', icon: 'assets/icons/tutorial_icons/les4.svg' },
+  { id: 5, title: 'Les 5', icon: 'assets/icons/tutorial_icons/les5.svg' }
 ];
 
 function createLessonButtons() {
@@ -180,8 +182,8 @@ function createLessonButtons() {
     btn.appendChild(img);
 
     btn.addEventListener('click', async (e) => {
-      const curMatch = (location.hash || '').match(/lesson=(\d+)/);
-      const cur = curMatch ? parseInt(curMatch[1], 10) : null;
+      const curMatch = (location.hash || '').match(/lesson=([\d.]+)/);
+      const cur = curMatch ? parseFloat(curMatch[1]) : null;
       const target = lesson.id;
       // If clicking current lesson, treat as refresh: reinitialize
       if (cur === target) {
@@ -192,16 +194,10 @@ function createLessonButtons() {
           canvas.discardActiveObject();
         } catch (err) {}
         if (target === 1) await startTutorialDirect();
-        if (target === 2) {
-          await prepareLesson2State();
-          await startSecondTutorial();
-        }
-        if (target === 3) {
-          await startThirdTutorial();
-        }
-        if (target === 4) {
-          await startLesson4();
-        }
+        if (target === 2) await startLesson2();
+        if (target === 3) await startLesson3();
+        if (target === 4) await startLesson4();
+        if (target === 5) await startLesson5();
         updateLessonButtons();
         return;
       }
@@ -220,18 +216,19 @@ function createLessonButtons() {
         objs.forEach(o => canvas.remove(o));
         canvas.discardActiveObject();
         // Clean up any active lesson
-        if (cur === 4) cleanupLesson4();
+        if (cur === 5) cleanupLesson5();
       } catch (err) {}
 
       if (target === 1) {
         await startTutorialDirect();
       } else if (target === 2) {
-        await prepareLesson2State();
-        await startSecondTutorial();
+        await startLesson2();
       } else if (target === 3) {
-        await startThirdTutorial();
+        await startLesson3();
       } else if (target === 4) {
         await startLesson4();
+      } else if (target === 5) {
+        await startLesson5();
       }
       updateLessonButtons();
     });
@@ -243,8 +240,8 @@ function createLessonButtons() {
 function updateLessonButtons() {
   const container = document.getElementById('lesson-buttons');
   if (!container) return;
-  const currentMatch = (location.hash || '').match(/lesson=(\d+)/);
-  const currentLesson = currentMatch ? parseInt(currentMatch[1], 10) : null;
+  const currentMatch = (location.hash || '').match(/lesson=([\d.]+)/);
+  const currentLesson = currentMatch ? parseFloat(currentMatch[1]) : null;
   Array.from(container.children).forEach(child => {
     const btn = child;
     const lessonId = parseInt(btn.dataset.lesson, 10);
@@ -343,6 +340,59 @@ document.querySelectorAll('#leftToolbar .tool-btn').forEach(b => {
   }
 });
 
+// Shape drawing tool handlers
+const rectTool = document.getElementById('tool-rect');
+const ellipseTool = document.getElementById('tool-ellipse');
+
+if (rectTool) {
+  rectTool.addEventListener('click', () => {
+    // Deactivate other tools
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    rectTool.classList.add('active');
+    
+    // Enable rectangle drawing mode
+    shapeDrawingController.enable('rect');
+  });
+}
+
+if (ellipseTool) {
+  ellipseTool.addEventListener('click', () => {
+    // Deactivate other tools
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    ellipseTool.classList.add('active');
+    
+    // Enable ellipse drawing mode
+    shapeDrawingController.enable('ellipse');
+  });
+}
+
+// When select tool is clicked, disable shape drawing
+if (selectTool) {
+  const originalSelectHandler = selectTool.onclick;
+  selectTool.addEventListener('click', () => {
+    shapeDrawingController.disable();
+  }, { capture: true });
+}
+
+// Update dimension controls when selection changes
+canvas.on('selection:created', (e) => {
+  if (e.selected && e.selected[0]) {
+    shapeDrawingController.updateControlsForSelection(e.selected[0]);
+  }
+});
+
+canvas.on('selection:updated', (e) => {
+  if (e.selected && e.selected[0]) {
+    shapeDrawingController.updateControlsForSelection(e.selected[0]);
+  }
+});
+
+canvas.on('object:modified', (e) => {
+  if (e.target) {
+    shapeDrawingController.updateControlsForSelection(e.target);
+  }
+});
+
 // Remove overlay when selection is made in Fabric
 if (canvas) {
   canvas.on('selection:created', () => {
@@ -367,16 +417,16 @@ if (selectTool) selectTool.classList.add('highlight');
 
 // Expose for debugging
 window.startTutorial = startTutorial;
-window.startSecondTutorial = startSecondTutorial;
+window.startLesson3 = startLesson3;
 
 // Start a specific tutorial when requested via URL hash (#lesson=1 or #lesson=2)
 async function startFromHash() {
   try {
     const h = location.hash || '';
     if (!h) return;
-    const m = h.match(/lesson=(\d+)/);
+    const m = h.match(/lesson=([\d.]+)/);
     if (!m) return;
-    const lesson = parseInt(m[1], 10);
+    const lesson = parseFloat(m[1]);
     if (lesson === 1) {
       // remove overlays and start lesson 1 directly without overlay
       try {
@@ -385,26 +435,29 @@ async function startFromHash() {
       } catch (e) {}
       await startTutorialDirect();
     } else if (lesson === 2) {
-      // remove any welcome overlays before starting directly at lesson 2
       try {
         if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
         if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
       } catch (e) {}
-      // prepare end state of lesson 1 (owl with helmet) and then start lesson 2
-      await prepareLesson2State();
-      await startSecondTutorial();
+      await startLesson2();
     } else if (lesson === 3) {
       try {
         if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
         if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
       } catch (e) {}
-      await startThirdTutorial();
+      await startLesson3();
     } else if (lesson === 4) {
       try {
         if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
         if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
       } catch (e) {}
       await startLesson4();
+    } else if (lesson === 5) {
+      try {
+        if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
+        if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
+      } catch (e) {}
+      await startLesson5();
     }
   } catch (e) { /* ignore */ }
 }

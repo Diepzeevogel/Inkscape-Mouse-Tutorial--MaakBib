@@ -21,24 +21,28 @@ export class AnimationController {
    */
   startPulseAnimation(target, animationId = 'pulse', duration = ANIMATION_DURATION.HELMET_TARGET_PULSE) {
     const startTime = performance.now();
-    
+    // Add a stop flag for this animationId
+    if (!this._stopFlags) this._stopFlags = {};
+    this._stopFlags[animationId] = false;
+
     const animate = () => {
+      if (this._stopFlags[animationId]) return;
       const now = performance.now();
       const elapsed = (now - startTime) % duration;
       const progress = elapsed / duration; // 0..1
       const opacity = 0.5 * (1 - Math.cos(2 * Math.PI * progress));
-      
+
       target.opacity = opacity;
       target.setCoords();
-      
+
       if (this.canvas) {
         this.canvas.requestRenderAll();
       }
-      
+
       const frameId = fabric.util.requestAnimFrame(animate);
       this.activeAnimations.set(animationId, frameId);
     };
-    
+
     const frameId = fabric.util.requestAnimFrame(animate);
     this.activeAnimations.set(animationId, frameId);
     return frameId;
@@ -311,6 +315,9 @@ export class AnimationController {
    * @param {string} animationId - Animation identifier
    */
   stopAnimation(animationId) {
+    if (this._stopFlags) {
+      this._stopFlags[animationId] = true;
+    }
     const frameId = this.activeAnimations.get(animationId);
     if (frameId) {
       try {

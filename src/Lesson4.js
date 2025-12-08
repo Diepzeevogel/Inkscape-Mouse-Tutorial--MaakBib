@@ -1,5 +1,5 @@
 /**
- * Lesson 3: Pan and Zoom (REFACTORED)
+ * Lesson 4: Pan and Zoom (REFACTORED)
  * Demonstrates:
  * - Uses AnimationController for all animations
  * - Uses AssetLoader for SVG loading
@@ -20,7 +20,7 @@ import {
   ANIMATION_DURATION
 } from './constants.js';
 
-class Lesson3State {
+class Lesson4State {
   constructor() {
     this.isActive = false;
     this.objects = {
@@ -50,7 +50,7 @@ class Lesson3State {
   }
 }
 
-const lesson3State = new Lesson3State();
+const lesson4State = new Lesson4State();
 let animationController = null;
 
 /**
@@ -58,16 +58,16 @@ let animationController = null;
  */
 function updatePageMetadata() {
   try {
-    document.title = 'Inkscape Les 3: Pannen en zoomen';
+    document.title = 'Inkscape Les 4: Pannen en zoomen';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 3: Pannen en zoomen'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 4: Pannen en zoomen'));
     }
   } catch (error) {
-    console.warn('[Lesson3] Failed to update metadata:', error);
+    console.warn('[Lesson4] Failed to update metadata:', error);
   }
 }
 
@@ -91,7 +91,7 @@ function updateInstructionPanel() {
       </ol>
     `;
   } catch (error) {
-    console.warn('[Lesson3] Failed to update panel:', error);
+    console.warn('[Lesson4] Failed to update panel:', error);
   }
 }
 
@@ -106,15 +106,15 @@ async function loadHelperObjects() {
     const owl1Groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_1_SVG, ['Owl_with_Helmet']);
     objects.owl = owl1Groups['Owl_with_Helmet'];
   } catch (error) {
-    console.warn('[Lesson3] Failed to load owl:', error);
+    console.warn('[Lesson4] Failed to load owl:', error);
   }
   
-  // Load toolbox from lesson 2
+  // Load toolbox from lesson 3
   try {
-    const lesson2Groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_2_SVG, ['Toolbox']);
-    objects.toolbox = lesson2Groups['Toolbox'];
+    const lesson3Groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_3_SVG, ['Toolbox']);
+    objects.toolbox = lesson3Groups['Toolbox'];
   } catch (error) {
-    console.warn('[Lesson3] Failed to load toolbox:', error);
+    console.warn('[Lesson4] Failed to load toolbox:', error);
   }
   
   return objects;
@@ -128,8 +128,8 @@ function setupHelperObjects(helpers) {
     helpers.owl.set({ selectable: false, evented: false, visible: true });
     try { helpers.owl.tutorialId = 'Owl_with_Helmet'; } catch (e) {}
     canvas.add(helpers.owl);
-    lesson3State.objects.owl = helpers.owl;
-    console.log('[Lesson3] Owl added');
+    lesson4State.objects.owl = helpers.owl;
+    console.log('[Lesson4] Owl added');
   }
   
   if (helpers.toolbox) {
@@ -143,8 +143,8 @@ function setupHelperObjects(helpers) {
     
     canvas.add(helpers.toolbox);
     helpers.toolbox.setCoords();
-    lesson3State.objects.toolbox = helpers.toolbox;
-    console.log('[Lesson3] Toolbox added');
+    lesson4State.objects.toolbox = helpers.toolbox;
+    console.log('[Lesson4] Toolbox added');
   }
 }
 
@@ -152,7 +152,7 @@ function setupHelperObjects(helpers) {
  * Load machine asset
  */
 async function loadMachineAsset() {
-  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_3_SVG, ['Layer_2']);
+  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_4_SVG, ['Layer_2']);
   return groups['Layer_2'];
 }
 
@@ -201,7 +201,7 @@ function positionMachine(machine) {
   machine.setCoords();
   
   try { machine.tutorialId = 'MakerMachine'; } catch (e) {}
-  lesson3State.objects.machine = machine;
+  lesson4State.objects.machine = machine;
 }
 
 /**
@@ -238,10 +238,10 @@ function setupMachineBulbs(machine) {
   });
   
   // Collect Bulb_Off objects
-  lesson3State.bulbOffObjects = findObjectsById(machine, /^bulb_off$|^bulb_x5f_off$/);
+  lesson4State.bulbOffObjects = findObjectsById(machine, /^bulb_off$|^bulb_x5f_off$/);
   
-  console.log('[Lesson3] Hidden', bulbOnObjects.length, 'bulb_on objects');
-  console.log('[Lesson3] Found', lesson3State.bulbOffObjects.length, 'bulb_off objects');
+  console.log('[Lesson4] Hidden', bulbOnObjects.length, 'bulb_on objects');
+  console.log('[Lesson4] Found', lesson4State.bulbOffObjects.length, 'bulb_off objects');
 }
 
 /**
@@ -250,7 +250,7 @@ function setupMachineBulbs(machine) {
 function disableMainObjects(machine) {
   const mainObjects = findObjectsById(machine, /^main$/);
   mainObjects.forEach(obj => obj.set({ evented: false }));
-  console.log('[Lesson3] Disabled', mainObjects.length, 'main objects');
+  console.log('[Lesson4] Disabled', mainObjects.length, 'main objects');
 }
 
 /**
@@ -273,8 +273,8 @@ function setupGears(machine) {
     gear.setCoords();
   });
   
-  lesson3State.gearObjects = gears;
-  console.log('[Lesson3] Found', gears.length, 'gears');
+  lesson4State.gearObjects = gears;
+  console.log('[Lesson4] Found', gears.length, 'gears');
 }
 
 /**
@@ -290,13 +290,13 @@ function findStartButton(machine) {
  */
 function toggleBulbs() {
   // Hide Bulb_Off
-  lesson3State.bulbOffObjects.forEach(obj => {
+  lesson4State.bulbOffObjects.forEach(obj => {
     obj.visible = false;
     obj.dirty = true;
   });
   
   // Show Bulb_On
-  const machine = lesson3State.objects.machine;
+  const machine = lesson4State.objects.machine;
   const bulbOnObjects = findObjectsById(machine, /^bulb_on$|^bulb_x5f_on$/);
   bulbOnObjects.forEach(obj => {
     obj.visible = true;
@@ -310,7 +310,7 @@ function toggleBulbs() {
  * Animate zoom out to show complete scene
  */
 function animateZoomOutToScene() {
-  const machine = lesson3State.objects.machine;
+  const machine = lesson4State.objects.machine;
   if (!machine) return;
   
   const machineBounds = machine.getBoundingRect(true);
@@ -331,8 +331,8 @@ function animateZoomOutToScene() {
   const toolboxTargetX = machineCenterX + machineBounds.width / 3;
   const toolboxTargetY = machineCenterY + machineBounds.height / 4;
   
-  const owl = lesson3State.objects.owl;
-  const toolbox = lesson3State.objects.toolbox;
+  const owl = lesson4State.objects.owl;
+  const toolbox = lesson4State.objects.toolbox;
   
   const owlStartX = owl ? owl.left : owlTargetX;
   const owlStartY = owl ? owl.top : owlTargetY;
@@ -384,7 +384,7 @@ function showCompletionMessage() {
       <p>Je bent nu klaar om de <strong>basisfuncties van Inkscape</strong> te leren!</p>
     `;
   } catch (error) {
-    console.warn('[Lesson3] Failed to show completion:', error);
+    console.warn('[Lesson4] Failed to show completion:', error);
   }
 }
 
@@ -392,9 +392,9 @@ function showCompletionMessage() {
  * Handle button click
  */
 function handleButtonClick() {
-  if (!lesson3State.buttonEnabled) return;
+  if (!lesson4State.buttonEnabled) return;
   
-  const button = lesson3State.objects.startButton;
+  const button = lesson4State.objects.startButton;
   if (!button) return;
   
   // Animate button press
@@ -404,29 +404,29 @@ function handleButtonClick() {
   toggleBulbs();
   
   // Start gear rotation
-  if (lesson3State.gearObjects.length > 0) {
-    lesson3State.animations.gears = animationController.startRotationAnimation(
-      lesson3State.gearObjects, 
+  if (lesson4State.gearObjects.length > 0) {
+    lesson4State.animations.gears = animationController.startRotationAnimation(
+      lesson4State.gearObjects, 
       'gear-rotation'
     );
   }
   
   // Start owl wiggle
-  if (lesson3State.objects.owl) {
-    lesson3State.animations.owlWiggle = animationController.startWiggleAnimation(
-      lesson3State.objects.owl,
+  if (lesson4State.objects.owl) {
+    lesson4State.animations.owlWiggle = animationController.startWiggleAnimation(
+      lesson4State.objects.owl,
       'owl-wiggle'
     );
   }
   
   // Bring owl and toolbox to front
-  if (lesson3State.objects.owl) canvas.bringToFront(lesson3State.objects.owl);
-  if (lesson3State.objects.toolbox) canvas.bringToFront(lesson3State.objects.toolbox);
+  if (lesson4State.objects.owl) canvas.bringToFront(lesson4State.objects.owl);
+  if (lesson4State.objects.toolbox) canvas.bringToFront(lesson4State.objects.toolbox);
   
   // Zoom out to show scene
   animateZoomOutToScene();
   
-  console.log('[Lesson3] Machine activated!');
+  console.log('[Lesson4] Machine activated!');
 }
 
 /**
@@ -435,17 +435,17 @@ function handleButtonClick() {
 function checkZoomLevel() {
   const currentZoom = canvas.getZoom();
   const required = ZOOM.REQUIRED_FOR_BUTTON;
-  const button = lesson3State.objects.startButton;
+  const button = lesson4State.objects.startButton;
   
   if (!button) return;
   
-  if (currentZoom >= required && !lesson3State.buttonEnabled) {
+  if (currentZoom >= required && !lesson4State.buttonEnabled) {
     button.set({ hoverCursor: 'pointer' });
-    lesson3State.buttonEnabled = true;
+    lesson4State.buttonEnabled = true;
     canvas.requestRenderAll();
-  } else if (currentZoom < required && lesson3State.buttonEnabled) {
+  } else if (currentZoom < required && lesson4State.buttonEnabled) {
     button.set({ hoverCursor: 'default' });
-    lesson3State.buttonEnabled = false;
+    lesson4State.buttonEnabled = false;
     canvas.requestRenderAll();
   }
 }
@@ -455,7 +455,7 @@ function checkZoomLevel() {
  */
 function setupStartButton(button) {
   if (!button) {
-    console.warn('[Lesson3] Start button not found');
+    console.warn('[Lesson4] Start button not found');
     return;
   }
   
@@ -469,14 +469,14 @@ function setupStartButton(button) {
   
   button.on('mousedown', handleButtonClick);
   
-  lesson3State.objects.startButton = button;
+  lesson4State.objects.startButton = button;
   
   // Monitor zoom level
   canvas.on('mouse:wheel', checkZoomLevel);
   canvas.on('after:render', checkZoomLevel);
   checkZoomLevel();
   
-  console.log('[Lesson3] Start button configured');
+  console.log('[Lesson4] Start button configured');
 }
 
 /**
@@ -501,7 +501,7 @@ function createDirectionArrow() {
   canvas.add(arrow);
   arrow.setCoords();
   
-  lesson3State.objects.directionArrow = arrow;
+  lesson4State.objects.directionArrow = arrow;
   return arrow;
 }
 
@@ -509,8 +509,8 @@ function createDirectionArrow() {
  * Start arrow animation
  */
 function startArrowAnimation() {
-  const arrow = lesson3State.objects.directionArrow;
-  const machine = lesson3State.objects.machine;
+  const arrow = lesson4State.objects.directionArrow;
+  const machine = lesson4State.objects.machine;
   
   if (!arrow || !machine) return;
   
@@ -631,7 +631,7 @@ function startArrowAnimation() {
   
   fabric.util.requestAnimFrame(animate);
   
-  lesson3State.animations.arrow = { stop: () => { isAnimating = false; } };
+  lesson4State.animations.arrow = { stop: () => { isAnimating = false; } };
 }
 
 /**
@@ -642,48 +642,48 @@ function cleanup() {
     animationController.stopAllAnimations();
   }
   
-  if (lesson3State.animations.arrow) {
-    lesson3State.animations.arrow.stop();
+  if (lesson4State.animations.arrow) {
+    lesson4State.animations.arrow.stop();
   }
-  if (lesson3State.animations.gears) {
-    lesson3State.animations.gears.stop();
+  if (lesson4State.animations.gears) {
+    lesson4State.animations.gears.stop();
   }
-  if (lesson3State.animations.owlWiggle) {
-    lesson3State.animations.owlWiggle.stop();
+  if (lesson4State.animations.owlWiggle) {
+    lesson4State.animations.owlWiggle.stop();
   }
   
   canvas.off('mouse:wheel', checkZoomLevel);
   canvas.off('after:render', checkZoomLevel);
   
-  Object.values(lesson3State.objects).forEach(obj => {
+  Object.values(lesson4State.objects).forEach(obj => {
     if (obj && canvas.contains(obj)) {
       canvas.remove(obj);
     }
   });
   
-  lesson3State.reset();
+  lesson4State.reset();
   canvas.requestRenderAll();
   
-  console.log('[Lesson3] Cleanup complete');
+  console.log('[Lesson4] Cleanup complete');
 }
 
 /**
  * Start Lesson 3
  */
-export async function startLesson3() {
-  if (lesson3State.isActive) {
-    console.log('[Lesson3] Already active');
+export async function startLesson4() {
+  if (lesson4State.isActive) {
+    console.log('[Lesson4] Already active');
     return;
   }
   
-  lesson3State.isActive = true;
+  lesson4State.isActive = true;
   
   try {
-    history.replaceState(null, '', '#lesson=3');
+    history.replaceState(null, '', '#lesson=4');
     // Trigger hashchange event to update lesson buttons
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   } catch (e) {
-    console.warn('[Lesson3] Could not update URL:', e);
+    console.warn('[Lesson4] Could not update URL:', e);
   }
   
   updatePageMetadata();
@@ -697,7 +697,7 @@ export async function startLesson3() {
     animationController = new AnimationController(canvas);
   }
   
-  console.info('[Lesson3] Loading assets...');
+  console.info('[Lesson4] Loading assets...');
   
   // Load helper objects
   const helpers = await loadHelperObjects();
@@ -706,7 +706,7 @@ export async function startLesson3() {
   // Load machine
   const machine = await loadMachineAsset();
   if (!machine) {
-    console.error('[Lesson3] Failed to load machine');
+    console.error('[Lesson4] Failed to load machine');
     return;
   }
   
@@ -724,20 +724,20 @@ export async function startLesson3() {
   
   canvas.requestRenderAll();
   
-  console.info('[Lesson3] Started successfully');
+  console.info('[Lesson4] Started successfully');
 }
 
 /**
  * Restart Lesson 3
  */
-export async function restartLesson3() {
+export async function restartLesson4() {
   cleanup();
   canvas.getObjects().slice().forEach(obj => canvas.remove(obj));
   canvas.discardActiveObject();
   canvas.requestRenderAll();
   
-  lesson3State.isActive = false;
-  await startLesson3();
+  lesson4State.isActive = false;
+  await startLesson4();
 }
 
-export { cleanup as cleanupLesson3 };
+export { cleanup as cleanupLesson4 };

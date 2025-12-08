@@ -1,8 +1,9 @@
 import { canvas } from './canvas.js';
 import { rectsOverlap, findGroupFragments, makeFabricGroupFromFragment } from './utils.js';
 import { startLesson1 as startLesson1Refactored, restartLesson1, cleanupLesson1 } from './Lesson1Refactored.js';
-import { startLesson2 as startLesson2Refactored, restartLesson2, cleanupLesson2 } from './Lesson2Refactored.js';
-import { startLesson3 as startLesson3Refactored, restartLesson3, cleanupLesson3 } from './Lesson3Refactored.js';
+import { startLesson2 as startLesson2Refactored, restartLesson2, cleanupLesson2 } from './Lesson2.js';
+import { startLesson3 as startLesson3Refactored, restartLesson3, cleanupLesson3 } from './Lesson3.js';
+import { startLesson4 as startLesson4Refactored, restartLesson4, cleanupLesson4 } from './Lesson4.js';
 
 let tutorialStarted = false;
 let tutorialInitializing = false;
@@ -26,6 +27,11 @@ function cleanupAllLessons() {
     cleanupLesson3();
   } catch (e) {
     console.warn('[Tutorial] Error cleaning up Lesson 3:', e);
+  }
+  try {
+    cleanupLesson4();
+  } catch (e) {
+    console.warn('[Tutorial] Error cleaning up Lesson 4:', e);
   }
 }
 
@@ -252,11 +258,17 @@ export async function startTutorialDirectOriginal() {
 
 // Panel instructions are now set in index.html
 
-// --- Second tutorial: shift-select and drag to toolbox ---
-export async function startSecondTutorial() {
+// --- Second tutorial: rotation ---
+export async function startLesson2() {
   // Use refactored version
   cleanupAllLessons();
   return startLesson2Refactored();
+}
+
+export async function startSecondTutorial() {
+  // Alias for backward compatibility - now lesson 3
+  cleanupAllLessons();
+  return startLesson3Refactored();
 }
 
 // Keep original implementation as fallback
@@ -267,18 +279,18 @@ export async function startSecondTutorialOriginal() {
     canvas.allowBoxSelection = false; // but disable box (marquee) selection
   }
   // reflect current lesson in the URL (use location.hash so hashchange fires and UI updates)
-  try { location.hash = 'lesson=2'; } catch (e) {}
+  try { location.hash = 'lesson=3'; } catch (e) {}
 
   // Update page title and toolbar for Lesson 2
   try {
-    document.title = 'Inkscape Les 2: Meerdere objecten selecteren';
+    document.title = 'Inkscape Les 3: Meerdere objecten selecteren';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       // rebuild brand content keeping the logo image
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 2: Meerdere objecten selecteren'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 3: Meerdere objecten selecteren'));
     }
     const panel = document.getElementById('panel');
     if (panel) {
@@ -566,25 +578,37 @@ export async function prepareLesson2State() {
 
 // --- Third tutorial: Maker Machine spawn off-canvas and arrow indicator ---
 export async function startThirdTutorial() {
+  // Alias for backward compatibility - now lesson 4
+  cleanupAllLessons();
+  return startLesson4Refactored();
+}
+
+export async function startLesson3() {
   // Use refactored version
   cleanupAllLessons();
   return startLesson3Refactored();
 }
 
+export async function startLesson4() {
+  // Use refactored version
+  cleanupAllLessons();
+  return startLesson4Refactored();
+}
+
 // Keep original implementation as fallback
 export async function startThirdTutorialOriginal() {
   // reflect current lesson in the URL
-  try { location.hash = 'lesson=3'; } catch (e) {}
+  try { location.hash = 'lesson=4'; } catch (e) {}
 
-  // Update page title and toolbar for Lesson 3
+  // Update page title and toolbar for Lesson 4
   try {
-    document.title = 'Inkscape Les 3: Pannen en zoomen';
+    document.title = 'Inkscape Les 4: Pannen en zoomen';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 3: Pannen en zoomen'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 4: Pannen en zoomen'));
     }
     const panel = document.getElementById('panel');
     if (panel) {

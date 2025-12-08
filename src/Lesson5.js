@@ -1,5 +1,5 @@
 /**
- * Lesson 4: Fill & Stroke (REFACTORED)
+ * Lesson 5: Fill & Stroke (REFACTORED)
  * Demonstrates:
  * - Selecting stroke-only objects (precision selection)
  * - Grouped objects that move together but are individually colorable
@@ -13,7 +13,7 @@ import { ASSETS, SVG_IDS, LESSON_FEATURES } from './constants.js';
 import { copyPasteController } from './CopyPasteController.js';
 import { undoRedoController } from './UndoRedoController.js';
 
-class Lesson4State {
+class Lesson5State {
   constructor() {
     this.isActive = false;
     this.objects = {
@@ -38,23 +38,23 @@ class Lesson4State {
   }
 }
 
-const lesson4State = new Lesson4State();
+const lesson5State = new Lesson5State();
 
 /**
  * Update page metadata for Lesson 4
  */
 function updatePageMetadata() {
   try {
-    document.title = 'Inkscape Les 4: Vulling en Streek';
+    document.title = 'Inkscape Les 5: Vulling en Streek';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 4: Vulling en Streek'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 5: Vulling en Streek'));
     }
   } catch (error) {
-    console.warn('[Lesson4] Failed to update metadata:', error);
+    console.warn('[Lesson5] Failed to update metadata:', error);
   }
 }
 
@@ -81,12 +81,12 @@ function updateInstructionPanel() {
         <li><kbd>Ctrl+V</kbd> - Plakken</li>
         <li><kbd>Delete</kbd> / <kbd>Backspace</kbd> - Verwijderen</li>
         <li><kbd>Ctrl+Z</kbd> - Ongedaan maken</li>
-        <li><kbd>Ctrl+Y</kbd> - Opnieuw</li>
+        <li><kbd>Ctrl+Shift+Z</kbd> - Opnieuw</li>
       </ul>
       <p><strong>Let op:</strong> De objecten hebben geen vulling, alleen een streek. Je moet precies op de lijn klikken!</p>
     `;
   } catch (error) {
-    console.warn('[Lesson4] Failed to update panel:', error);
+    console.warn('[Lesson5] Failed to update panel:', error);
   }
 }
 
@@ -97,18 +97,18 @@ async function loadLessonAssets() {
   try {
     // Load individual parts from the SVG
     const parts = await assetLoader.loadFabricGroups(
-      ASSETS.LESSON_4_SVG,
+      ASSETS.LESSON_5_SVG,
       ['Handle', 'Top']
     );
 
-    console.log('[Lesson4] Loaded parts:', Object.keys(parts));
+    console.log('[Lesson5] Loaded parts:', Object.keys(parts));
     
     return {
       handle: parts['Handle'],
       top: parts['Top']
     };
   } catch (error) {
-    console.error('[Lesson4] Failed to load assets:', error);
+    console.error('[Lesson5] Failed to load assets:', error);
     throw error;
   }
 }
@@ -173,7 +173,7 @@ function setupScrewdriver(handle, top) {
   };
   canvas.on('object:moving', moveListener);
 
-  console.log('[Lesson4] Screwdriver parts added (linked movement).');
+  console.log('[Lesson5] Screwdriver parts added (linked movement).');
   return { handle, top, moveListener };
 }
 
@@ -200,7 +200,7 @@ function setupFillStrokePanel() {
   });
   
   canvas.on('selection:cleared', () => {
-    console.log('[Lesson4] Selection cleared');
+    console.log('[Lesson5] Selection cleared');
     panel.updateForObject(null);
   });
   
@@ -210,15 +210,15 @@ function setupFillStrokePanel() {
 /**
  * Start Lesson 4
  */
-export async function startLesson4() {
-  if (lesson4State.isActive) {
-    console.log('[Lesson4] Already active');
+export async function startLesson5() {
+  if (lesson5State.isActive) {
+    console.log('[Lesson5] Already active');
     return;
   }
 
   try {
-    console.log('[Lesson4] Starting...');
-    lesson4State.isActive = true;
+    console.log('[Lesson5] Starting...');
+    lesson5State.isActive = true;
 
     // Update UI
     updatePageMetadata();
@@ -229,31 +229,46 @@ export async function startLesson4() {
     canvas.clear();
 
     // Load assets
-    console.log('[Lesson4] Loading assets...');
+    console.log('[Lesson5] Loading assets...');
     const { handle, top } = await loadLessonAssets();
 
     // Setup screwdriver
     const { handle: handleObj, top: topObj, moveListener } = setupScrewdriver(handle, top);
-    lesson4State.objects.handle = handleObj;
-    lesson4State.objects.top = topObj;
-    lesson4State.moveListener = moveListener;
+    lesson5State.objects.handle = handleObj;
+    lesson5State.objects.top = topObj;
+    lesson5State.moveListener = moveListener;
 
     // Setup Fill & Stroke panel
-    lesson4State.fillStrokePanel = setupFillStrokePanel();
+    lesson5State.fillStrokePanel = setupFillStrokePanel();
 
     // Enable copy-paste if configured for this lesson
     if (LESSON_FEATURES[4]?.COPY_PASTE) {
       copyPasteController.enable();
       undoRedoController.enable();
-      console.log('[Lesson4] Copy-paste and undo/redo enabled (Ctrl+C/V/Z/Y, Delete)');
+      console.log('[Lesson5] Copy-paste and undo/redo enabled (Ctrl+C/V/Z/Y, Delete)');
+    }
+
+    // Enable shape tools if configured for this lesson
+    if (LESSON_FEATURES[4]?.SHAPE_TOOLS) {
+      const rectTool = document.getElementById('tool-rect');
+      const ellipseTool = document.getElementById('tool-ellipse');
+      if (rectTool) {
+        rectTool.disabled = false;
+        rectTool.removeAttribute('aria-disabled');
+      }
+      if (ellipseTool) {
+        ellipseTool.disabled = false;
+        ellipseTool.removeAttribute('aria-disabled');
+      }
+      console.log('[Lesson5] Shape tools enabled');
     }
 
     canvas.requestRenderAll();
-    console.log('[Lesson4] Started successfully');
+    console.log('[Lesson5] Started successfully');
 
   } catch (error) {
-    console.error('[Lesson4] Failed to start:', error);
-    lesson4State.isActive = false;
+    console.error('[Lesson5] Failed to start:', error);
+    lesson5State.isActive = false;
     throw error;
   }
 }
@@ -261,34 +276,46 @@ export async function startLesson4() {
 /**
  * Clean up Lesson 4
  */
-export function cleanupLesson4() {
-  if (!lesson4State.isActive) return;
+export function cleanupLesson5() {
+  if (!lesson5State.isActive) return;
 
-  console.log('[Lesson4] Cleaning up...');
+  console.log('[Lesson5] Cleaning up...');
 
   // Remove canvas objects
-  if (lesson4State.objects.handle) canvas.remove(lesson4State.objects.handle);
-  if (lesson4State.objects.top) canvas.remove(lesson4State.objects.top);
+  if (lesson5State.objects.handle) canvas.remove(lesson5State.objects.handle);
+  if (lesson5State.objects.top) canvas.remove(lesson5State.objects.top);
 
   // Remove panel
-  if (lesson4State.fillStrokePanel) {
-    lesson4State.fillStrokePanel.destroy();
+  if (lesson5State.fillStrokePanel) {
+    lesson5State.fillStrokePanel.destroy();
   }
 
   // Disable copy-paste and undo/redo
   copyPasteController.disable();
   undoRedoController.disable();
 
+  // Disable shape tools
+  const rectTool = document.getElementById('tool-rect');
+  const ellipseTool = document.getElementById('tool-ellipse');
+  if (rectTool) {
+    rectTool.disabled = true;
+    rectTool.setAttribute('aria-disabled', 'true');
+  }
+  if (ellipseTool) {
+    ellipseTool.disabled = true;
+    ellipseTool.setAttribute('aria-disabled', 'true');
+  }
+
   // Clear canvas event listeners
   canvas.off('selection:created');
   canvas.off('selection:updated');
   canvas.off('selection:cleared');
-  if (lesson4State.moveListener) {
-    canvas.off('object:moving', lesson4State.moveListener);
+  if (lesson5State.moveListener) {
+    canvas.off('object:moving', lesson5State.moveListener);
   }
 
   // Reset state
-  lesson4State.reset();
+  lesson5State.reset();
   
-  console.log('[Lesson4] Cleanup complete');
+  console.log('[Lesson5] Cleanup complete');
 }

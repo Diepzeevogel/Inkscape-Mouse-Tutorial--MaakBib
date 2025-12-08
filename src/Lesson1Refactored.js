@@ -272,7 +272,7 @@ function showNextButton() {
   button.onclick = () => {
     // Import dynamically to avoid circular dependencies
     import('./tutorial.js').then(module => {
-      module.startSecondTutorial();
+      module.startLesson2();
     });
   };
 

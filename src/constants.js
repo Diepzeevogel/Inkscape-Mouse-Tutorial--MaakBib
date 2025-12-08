@@ -60,7 +60,8 @@ export const ASSETS = {
   LESSON_1_SVG: 'assets/tutorials/les1.svg',
   LESSON_2_SVG: 'assets/tutorials/les2.svg',
   LESSON_3_SVG: 'assets/tutorials/les3.svg',
-  LESSON_4_SVG: 'assets/tutorials/les4.svg'
+  LESSON_4_SVG: 'assets/tutorials/les4.svg',
+  LESSON_5_SVG: 'assets/tutorials/les5.svg'
 };
 
 // SVG Element IDs
@@ -72,6 +73,13 @@ export const SVG_IDS = {
     OWL_WITH_HELMET: ['Owl_with_Helmet']
   },
   LESSON_2: {
+    OWL: ['Owl'],
+    WRENCH: ['Wrench'],
+    WRENCH_OUTLINE: ['Wrench_Outline'],
+    WRENCH1: ['Wrench1'],
+    WRENCH2: ['Wrench2']
+  },
+  LESSON_3: {
     TOOLBOX: 'Toolbox',
     WRENCH: 'Wrench',
     SCREWDRIVER: 'Screwdriver',
@@ -79,7 +87,7 @@ export const SVG_IDS = {
     PENCIL: 'Pencil',
     HAMMER: 'Hammer'
   },
-  LESSON_3: {
+  LESSON_4: {
     MACHINE_LAYER: 'Layer_2',
     BULB_ON: 'bulb_on',
     BULB_OFF: 'bulb_off',
@@ -87,7 +95,7 @@ export const SVG_IDS = {
     MAIN: 'main',
     GEAR: 'gear'
   },
-  LESSON_4: {
+  LESSON_5: {
     SCREWDRIVER: 'Screwdriver',
     HANDLE: 'Handle',
     TOP: 'Top'
@@ -146,15 +154,23 @@ export const TRANSFORM_MODE = {
 // Lesson Feature Flags
 export const LESSON_FEATURES = {
   1: {
-    COPY_PASTE: false
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false
   },
   2: {
-    COPY_PASTE: false
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false
   },
   3: {
-    COPY_PASTE: false
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false
   },
   4: {
-    COPY_PASTE: true
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false
+  },
+  5: {
+    COPY_PASTE: true,
+    SHAPE_TOOLS: true
   }
 };
