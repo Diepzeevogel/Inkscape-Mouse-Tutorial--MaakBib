@@ -4,6 +4,7 @@ import { startLesson1 as startLesson1Refactored, restartLesson1, cleanupLesson1 
 import { startLesson2 as startLesson2Refactored, restartLesson2, cleanupLesson2 } from './Lesson2.js';
 import { startLesson3 as startLesson3Refactored, restartLesson3, cleanupLesson3 } from './Lesson3.js';
 import { startLesson4 as startLesson4Refactored, restartLesson4, cleanupLesson4 } from './Lesson4.js';
+import { startLesson5 as startLesson5Refactored, restartLesson5, cleanupLesson5 } from './Lesson5.js';
 
 let tutorialStarted = false;
 let tutorialInitializing = false;
@@ -32,6 +33,11 @@ function cleanupAllLessons() {
     cleanupLesson4();
   } catch (e) {
     console.warn('[Tutorial] Error cleaning up Lesson 4:', e);
+  }
+  try {
+    cleanupLesson5();
+  } catch (e) {
+    console.warn('[Tutorial] Error cleaning up Lesson 5:', e);
   }
 }
 
@@ -578,9 +584,9 @@ export async function prepareLesson2State() {
 
 // --- Third tutorial: Maker Machine spawn off-canvas and arrow indicator ---
 export async function startThirdTutorial() {
-  // Alias for backward compatibility - now lesson 4
+  // Alias for backward compatibility - now lesson 5
   cleanupAllLessons();
-  return startLesson4Refactored();
+  return startLesson5Refactored();
 }
 
 export async function startLesson3() {
@@ -595,14 +601,20 @@ export async function startLesson4() {
   return startLesson4Refactored();
 }
 
+export async function startLesson5() {
+  // Use refactored version
+  cleanupAllLessons();
+  return startLesson5Refactored();
+}
+
 // Keep original implementation as fallback
 export async function startThirdTutorialOriginal() {
   // reflect current lesson in the URL
-  try { location.hash = 'lesson=4'; } catch (e) {}
+  try { location.hash = 'lesson=5'; } catch (e) {}
 
-  // Update page title and toolbar for Lesson 4
+  // Update page title and toolbar for Lesson 5
   try {
-    document.title = 'Inkscape Les 4: Pannen en zoomen';
+    document.title = 'Inkscape Les 5: Pannen en zoomen';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');

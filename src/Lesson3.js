@@ -74,7 +74,6 @@ function updateInstructionPanel() {
         <li><img src="assets/icons/shift-button.svg" alt="Shift button" style="width:30px;height:30px;vertical-align:middle">&nbsp; + <img src="assets/icons/left-click.svg" alt="Left click" style="width:30px;height:30px;vertical-align:middle">&nbsp; Houd <strong>Shift</strong> ingedrukt en klik op alle gereedschappen om ze te selecteren.</li>
         <li>Als je <strong>al</strong> het gereedschap geselecteerd heb, sleep je het naar de gereedschapskist.</li>
       </ol>
-      <p>Probeer het ook met een selectievak. Klik en sleep een rechthoek om meerdere gereedschappen tegelijk te selecteren.</p>
     `;
   } catch (error) {
     console.warn('[Lesson3] Failed to update panel:', error);
@@ -132,13 +131,20 @@ function setupOwlWithHelmet(owlWithHelmet) {
 }
 
 /**
- * Setup toolbox (non-interactive target)
+ * Setup toolbox (selectable to force shift-click selection instead of marquee)
  */
 function setupToolbox(toolbox) {
   toolbox.set({ 
-    selectable: false, 
-    evented: false, 
-    visible: true 
+    selectable: true, 
+    evented: true, 
+    visible: true,
+    lockMovementX: true,
+    lockMovementY: true,
+    lockRotation: true,
+    lockScalingX: true,
+    lockScalingY: true,
+    hasControls: false,
+    hasBorders: true
   });
   
   const baseX = canvas.getWidth() * LAYOUT.TOOLBOX_X_RATIO;

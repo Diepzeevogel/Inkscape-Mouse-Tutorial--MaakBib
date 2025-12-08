@@ -1,10 +1,9 @@
 /**
- * Lesson 4: Pan and Zoom (REFACTORED)
+ * Lesson 4: Marquee Selection (Box Selection)
  * Demonstrates:
- * - Uses AnimationController for all animations
- * - Uses AssetLoader for SVG loading
- * - Uses constants instead of magic numbers
- * - Proper object-oriented structure
+ * - First unlock the toolbox with the key (rotate over center)
+ * - Then use marquee/box selection to select all tools
+ * - Drag tools into the open toolbox
  */
 
 import { canvas, resetViewport } from './canvas.js';
@@ -13,40 +12,39 @@ import { assetLoader } from './AssetLoader.js';
 import { 
   ASSETS, 
   SVG_IDS, 
-  ZOOM,
-  INTERACTION_THRESHOLD,
-  STYLE,
   LAYOUT,
-  ANIMATION_DURATION
+  STYLE 
 } from './constants.js';
 
 class Lesson4State {
   constructor() {
     this.isActive = false;
+    this.phase = 'unlock'; // 'unlock' or 'collect'
     this.objects = {
-      machine: null,
-      owl: null,
-      toolbox: null,
-      startButton: null,
-      directionArrow: null
+      owlWithHelmet: null,
+      toolboxClosed: null,
+      toolboxOpen: null,
+      key: null,
+      tools: [] // wrench, screwdriver, saw, pencil, hammer
     };
-    this.animations = {
-      arrow: null,
-      gears: null,
-      owlWiggle: null
-    };
-    this.bulbOffObjects = [];
-    this.gearObjects = [];
-    this.buttonEnabled = false;
+    this.completed = false;
+    this.isDragging = false;
+    this.keyUnlocked = false;
   }
 
   reset() {
     this.isActive = false;
-    this.objects = { machine: null, owl: null, toolbox: null, startButton: null, directionArrow: null };
-    this.animations = { arrow: null, gears: null, owlWiggle: null };
-    this.bulbOffObjects = [];
-    this.gearObjects = [];
-    this.buttonEnabled = false;
+    this.phase = 'unlock';
+    this.objects = { 
+      owlWithHelmet: null, 
+      toolboxClosed: null, 
+      toolboxOpen: null, 
+      key: null, 
+      tools: [] 
+    };
+    this.completed = false;
+    this.isDragging = false;
+    this.keyUnlocked = false;
   }
 }
 
@@ -54,17 +52,17 @@ const lesson4State = new Lesson4State();
 let animationController = null;
 
 /**
- * Update page metadata
+ * Update page metadata for Lesson 4
  */
 function updatePageMetadata() {
   try {
-    document.title = 'Inkscape Les 4: Pannen en zoomen';
+    document.title = 'Inkscape Les 4: Selectiekader';
     const brand = document.querySelector('#toolbar .brand');
     if (brand) {
       const img = brand.querySelector('img');
       brand.innerHTML = '';
       if (img) brand.appendChild(img);
-      brand.appendChild(document.createTextNode(' Inkscape Les 4: Pannen en zoomen'));
+      brand.appendChild(document.createTextNode(' Inkscape Les 4: Selectiekader'));
     }
   } catch (error) {
     console.warn('[Lesson4] Failed to update metadata:', error);
@@ -72,592 +70,560 @@ function updatePageMetadata() {
 }
 
 /**
- * Update instruction panel
+ * Update instruction panel based on current phase
  */
 function updateInstructionPanel() {
   try {
     const panel = document.getElementById('panel');
     if (!panel) return;
 
-    panel.innerHTML = `
-      <h3>Opdracht</h3>
-      <p>Laten we de creativiteits-machine starten!</p>
-      <ol>
-        <li>Volg de <span style="color:#1976d2">blauwe pijl</span> om de machine te vinden.</li>
-        <li><img src="assets/icons/middle-click.svg" alt="Middle click" style="width:30px;height:30px;vertical-align:middle">&nbsp; Klik en sleep met de midden-muis knop om te <strong>pannen</strong> (verschuiven).</li>
-        <li><img src="assets/icons/ctrl-control-button.svg" alt="Control button" style="width:30px;height:30px;vertical-align:middle">&nbsp; + <img src="assets/icons/scroll-wheel.svg" alt="Scroll wheel" style="width:30px;height:30px;vertical-align:middle">&nbsp; om in en uit te <strong>zoomen</strong>.</li>
-        <li>Zoom ver genoeg in op de machine om de <strong>startknop</strong> te vinden.</li>
-        <li>Klik op de startknop om de machine aan te zetten!</li>
-      </ol>
-    `;
+    if (lesson4State.phase === 'unlock') {
+      panel.innerHTML = `
+        <h3>Opdracht</h3>
+        <p>De gereedschapskist zit op slot!</p>
+        <p>Gebruik de sleutel om hem te openen.</p>
+        <ol>
+          <li><img src="assets/icons/left-click.svg" alt="Left click" style="width:30px;height:30px;vertical-align:middle">&nbsp; Selecteer de sleutel</li>
+          <li><i class="fa-solid fa-arrows-up-down-left-right"></i>&nbsp; Sleep de sleutel naar het slot</li>
+          <li><i class="fa-solid fa-rotate"></i>&nbsp; Draai de sleutel om te openen</li>
+        </ol>
+      `;
+    } else {
+      panel.innerHTML = `
+        <h3>Opdracht</h3>
+        <p>De kist is open! Nu moet het gereedschap erin.</p>
+        <p>Gebruik het selectiekader om alles te selecteren.</p>
+        <ol>
+          <li><img src="assets/icons/left-click.svg" alt="Left click" style="width:30px;height:30px;vertical-align:middle">&nbsp; Klik en sleep om een selectiekader te maken</li>
+          <li>Zorg dat alle gereedschappen binnen het kader vallen</li>
+          <li><i class="fa-solid fa-arrows-up-down-left-right"></i>&nbsp;Sleep alles naar de gereedschapskist</li>
+        </ol>
+      `;
+    }
   } catch (error) {
     console.warn('[Lesson4] Failed to update panel:', error);
   }
 }
 
 /**
- * Load helper objects from previous lessons
+ * Load all SVG assets for Lesson 4
  */
-async function loadHelperObjects() {
-  const objects = {};
+async function loadLessonAssets() {
+  // Load owl with helmet from Lesson 1 (end state)
+  const lesson1Assets = await assetLoader.loadFabricGroups(ASSETS.LESSON_1_SVG, ['Owl_with_Helmet']);
   
-  // Load owl from lesson 1
-  try {
-    const owl1Groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_1_SVG, ['Owl_with_Helmet']);
-    objects.owl = owl1Groups['Owl_with_Helmet'];
-  } catch (error) {
-    console.warn('[Lesson4] Failed to load owl:', error);
-  }
+  // Load Lesson 4 tools and toolbox
+  const identifiers = ['ToolboxClosed', 'ToolboxOpen', 'Key', 'Wrench', 'Screwdriver', 'Saw', 'Pencil', 'Hammer'];
+  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_4_SVG, identifiers);
   
-  // Load toolbox from lesson 3
-  try {
-    const lesson3Groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_3_SVG, ['Toolbox']);
-    objects.toolbox = lesson3Groups['Toolbox'];
-  } catch (error) {
-    console.warn('[Lesson4] Failed to load toolbox:', error);
-  }
-  
-  return objects;
+  return {
+    owlWithHelmet: lesson1Assets['Owl_with_Helmet'],
+    toolboxClosed: groups['ToolboxClosed'],
+    toolboxOpen: groups['ToolboxOpen'],
+    key: groups['Key'],
+    wrench: groups['Wrench'],
+    screwdriver: groups['Screwdriver'],
+    saw: groups['Saw'],
+    pencil: groups['Pencil'],
+    hammer: groups['Hammer']
+  };
 }
 
 /**
- * Setup helper objects (owl and toolbox from previous lessons)
+ * Setup owl with helmet (end state from Lesson 1)
  */
-function setupHelperObjects(helpers) {
-  if (helpers.owl) {
-    helpers.owl.set({ selectable: false, evented: false, visible: true });
-    try { helpers.owl.tutorialId = 'Owl_with_Helmet'; } catch (e) {}
-    canvas.add(helpers.owl);
-    lesson4State.objects.owl = helpers.owl;
-    console.log('[Lesson4] Owl added');
-  }
-  
-  if (helpers.toolbox) {
-    helpers.toolbox.set({ selectable: false, evented: false, visible: true });
-    try { helpers.toolbox.tutorialId = 'Toolbox'; } catch (e) {}
-    
-    const baseX = canvas.getWidth() * LAYOUT.TOOLBOX_X_RATIO;
-    const topY = canvas.getHeight() / 2 + LAYOUT.TOOLBOX_Y_OFFSET;
-    helpers.toolbox.left = baseX;
-    helpers.toolbox.top = topY;
-    
-    canvas.add(helpers.toolbox);
-    helpers.toolbox.setCoords();
-    lesson4State.objects.toolbox = helpers.toolbox;
-    console.log('[Lesson4] Toolbox added');
-  }
-}
-
-/**
- * Load machine asset
- */
-async function loadMachineAsset() {
-  const groups = await assetLoader.loadFabricGroups(ASSETS.LESSON_4_SVG, ['Layer_2']);
-  return groups['Layer_2'];
-}
-
-/**
- * Disable caching recursively
- */
-function disableObjectCaching(group) {
-  if (!group) return;
-  group.objectCaching = false;
-  if (group.getObjects) {
-    group.getObjects().forEach(obj => {
-      obj.objectCaching = false;
-      if (obj.getObjects) disableObjectCaching(obj);
-    });
-  }
-}
-
-/**
- * Position machine off-canvas
- */
-function positionMachine(machine) {
-  const centerX = canvas.getWidth() / 2;
-  const centerY = canvas.getHeight() / 2;
-  
-  machine.set({ 
-    selectable: false, 
-    evented: true, 
-    visible: true,
-    hoverCursor: 'default',
-    subTargetCheck: true
-  });
-  
-  canvas.add(machine);
-  machine.setCoords();
-  
-  const bounds = machine.getBoundingRect(true);
-  const targetCenterX = centerX + INTERACTION_THRESHOLD.MACHINE_OFFSET;
-  const desiredLeft = targetCenterX - bounds.width / 2;
-  const desiredTop = centerY - bounds.height / 2;
-  
-  const deltaX = desiredLeft - bounds.left;
-  const deltaY = desiredTop - bounds.top;
-  
-  machine.left = machine.left + deltaX;
-  machine.top = machine.top + deltaY;
-  machine.setCoords();
-  
-  try { machine.tutorialId = 'MakerMachine'; } catch (e) {}
-  lesson4State.objects.machine = machine;
-}
-
-/**
- * Find and collect objects by ID pattern
- */
-function findObjectsById(group, pattern, collection = []) {
-  if (!group || !group.getObjects) return collection;
-  
-  group.getObjects().forEach(obj => {
-    const objId = obj.id || obj.svgId || obj.data?.id;
-    const objIdLower = objId ? String(objId).toLowerCase() : '';
-    
-    if (objIdLower && objIdLower.match(pattern)) {
-      collection.push(obj);
-    }
-    
-    if (obj.type === 'group' && obj.getObjects) {
-      findObjectsById(obj, pattern, collection);
-    }
-  });
-  
-  return collection;
-}
-
-/**
- * Setup machine bulbs
- */
-function setupMachineBulbs(machine) {
-  // Hide all Bulb_On objects
-  const bulbOnObjects = findObjectsById(machine, /^bulb_on$|^bulb_x5f_on$/);
-  bulbOnObjects.forEach(obj => {
-    obj.visible = false;
-    obj.dirty = true;
-  });
-  
-  // Collect Bulb_Off objects
-  lesson4State.bulbOffObjects = findObjectsById(machine, /^bulb_off$|^bulb_x5f_off$/);
-  
-  console.log('[Lesson4] Hidden', bulbOnObjects.length, 'bulb_on objects');
-  console.log('[Lesson4] Found', lesson4State.bulbOffObjects.length, 'bulb_off objects');
-}
-
-/**
- * Disable events on main machine parts
- */
-function disableMainObjects(machine) {
-  const mainObjects = findObjectsById(machine, /^main$/);
-  mainObjects.forEach(obj => obj.set({ evented: false }));
-  console.log('[Lesson4] Disabled', mainObjects.length, 'main objects');
-}
-
-/**
- * Setup gears for rotation
- */
-function setupGears(machine) {
-  const gears = findObjectsById(machine, /^gear\d*$/);
-  
-  gears.forEach(gear => {
-    const rect = gear.getBoundingRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    gear.set({ 
-      originX: 'center', 
-      originY: 'center',
-      left: centerX,
-      top: centerY
-    });
-    gear.setCoords();
-  });
-  
-  lesson4State.gearObjects = gears;
-  console.log('[Lesson4] Found', gears.length, 'gears');
-}
-
-/**
- * Find start button
- */
-function findStartButton(machine) {
-  const buttons = findObjectsById(machine, /^start$|^start_x5f_button$|^startbutton$/);
-  return buttons[0] || null;
-}
-
-/**
- * Toggle bulbs (turn machine on)
- */
-function toggleBulbs() {
-  // Hide Bulb_Off
-  lesson4State.bulbOffObjects.forEach(obj => {
-    obj.visible = false;
-    obj.dirty = true;
-  });
-  
-  // Show Bulb_On
-  const machine = lesson4State.objects.machine;
-  const bulbOnObjects = findObjectsById(machine, /^bulb_on$|^bulb_x5f_on$/);
-  bulbOnObjects.forEach(obj => {
-    obj.visible = true;
-    obj.dirty = true;
-  });
-  
-  canvas.requestRenderAll();
-}
-
-/**
- * Animate zoom out to show complete scene
- */
-function animateZoomOutToScene() {
-  const machine = lesson4State.objects.machine;
-  if (!machine) return;
-  
-  const machineBounds = machine.getBoundingRect(true);
-  const machineCenterX = machineBounds.left + machineBounds.width / 2;
-  const machineCenterY = machineBounds.top + machineBounds.height / 2;
-  
-  const canvasWidth = canvas.getWidth();
-  const canvasHeight = canvas.getHeight();
-  const padding = LAYOUT.MACHINE_ZOOM_PADDING;
-  
-  const zoomX = (canvasWidth - padding * 2) / machineBounds.width;
-  const zoomY = (canvasHeight - padding * 2) / machineBounds.height;
-  const targetZoom = Math.min(zoomX, zoomY, 1);
-  
-  // Target positions for owl and toolbox
-  const owlTargetX = machineCenterX;
-  const owlTargetY = machineCenterY + machineBounds.height / 4 + 100;
-  const toolboxTargetX = machineCenterX + machineBounds.width / 3;
-  const toolboxTargetY = machineCenterY + machineBounds.height / 4;
-  
-  const owl = lesson4State.objects.owl;
-  const toolbox = lesson4State.objects.toolbox;
-  
-  const owlStartX = owl ? owl.left : owlTargetX;
-  const owlStartY = owl ? owl.top : owlTargetY;
-  const toolboxStartX = toolbox ? toolbox.left : toolboxTargetX;
-  const toolboxStartY = toolbox ? toolbox.top : toolboxTargetY;
-  
-  animationController.animateViewport({
-    targetZoom,
-    targetX: machineCenterX,
-    targetY: machineCenterY,
-    duration: ANIMATION_DURATION.ZOOM_OUT,
-    onProgress: (progress, eased) => {
-      if (owl) {
-        owl.left = owlStartX + (owlTargetX - owlStartX) * eased;
-        owl.top = owlStartY + (owlTargetY - owlStartY) * eased;
-        owl.setCoords();
-      }
-      if (toolbox) {
-        toolbox.left = toolboxStartX + (toolboxTargetX - toolboxStartX) * eased;
-        toolbox.top = toolboxStartY + (toolboxTargetY - toolboxStartY) * eased;
-        toolbox.setCoords();
-      }
-    },
-    onComplete: () => {
-      showCompletionMessage();
-    }
-  });
-}
-
-/**
- * Show completion message
- */
-function showCompletionMessage() {
-  try {
-    const panel = document.getElementById('panel');
-    if (!panel) return;
-    
-    panel.innerHTML = `
-      <h3>🎉 Gefeliciteerd!</h3>
-      <p>Je hebt alle lessen voltooid!</p>
-      <p>Je kunt nu:</p>
-      <ul>
-        <li><strong>Selecteren</strong> door op objecten te klikken</li>
-        <li><strong>Slepen</strong> om objecten te verplaatsen</li>
-        <li><strong>Meerdere objecten selecteren</strong> met Shift of een selectievak</li>
-        <li><strong>Pannen</strong> door te klikken en slepen op het canvas</li>
-        <li><strong>Zoomen</strong> met Ctrl + Scroll</li>
-      </ul>
-      <p>Je bent nu klaar om de <strong>basisfuncties van Inkscape</strong> te leren!</p>
-    `;
-  } catch (error) {
-    console.warn('[Lesson4] Failed to show completion:', error);
-  }
-}
-
-/**
- * Handle button click
- */
-function handleButtonClick() {
-  if (!lesson4State.buttonEnabled) return;
-  
-  const button = lesson4State.objects.startButton;
-  if (!button) return;
-  
-  // Animate button press
-  animationController.animateButtonPress(button);
-  
-  // Toggle bulbs
-  toggleBulbs();
-  
-  // Start gear rotation
-  if (lesson4State.gearObjects.length > 0) {
-    lesson4State.animations.gears = animationController.startRotationAnimation(
-      lesson4State.gearObjects, 
-      'gear-rotation'
-    );
-  }
-  
-  // Start owl wiggle
-  if (lesson4State.objects.owl) {
-    lesson4State.animations.owlWiggle = animationController.startWiggleAnimation(
-      lesson4State.objects.owl,
-      'owl-wiggle'
-    );
-  }
-  
-  // Bring owl and toolbox to front
-  if (lesson4State.objects.owl) canvas.bringToFront(lesson4State.objects.owl);
-  if (lesson4State.objects.toolbox) canvas.bringToFront(lesson4State.objects.toolbox);
-  
-  // Zoom out to show scene
-  animateZoomOutToScene();
-  
-  console.log('[Lesson4] Machine activated!');
-}
-
-/**
- * Check zoom level and enable/disable button
- */
-function checkZoomLevel() {
-  const currentZoom = canvas.getZoom();
-  const required = ZOOM.REQUIRED_FOR_BUTTON;
-  const button = lesson4State.objects.startButton;
-  
-  if (!button) return;
-  
-  if (currentZoom >= required && !lesson4State.buttonEnabled) {
-    button.set({ hoverCursor: 'pointer' });
-    lesson4State.buttonEnabled = true;
-    canvas.requestRenderAll();
-  } else if (currentZoom < required && lesson4State.buttonEnabled) {
-    button.set({ hoverCursor: 'default' });
-    lesson4State.buttonEnabled = false;
-    canvas.requestRenderAll();
-  }
-}
-
-/**
- * Setup start button
- */
-function setupStartButton(button) {
-  if (!button) {
-    console.warn('[Lesson4] Start button not found');
+function setupOwlWithHelmet(owlWithHelmet) {
+  if (!owlWithHelmet) {
+    console.warn('[Lesson4] Owl with helmet not found');
     return;
   }
   
-  button.set({ 
-    selectable: false, 
-    evented: true,
-    hoverCursor: 'default',
-    perPixelTargetFind: true,
-    targetFindTolerance: 5
-  });
-  
-  button.on('mousedown', handleButtonClick);
-  
-  lesson4State.objects.startButton = button;
-  
-  // Monitor zoom level
-  canvas.on('mouse:wheel', checkZoomLevel);
-  canvas.on('after:render', checkZoomLevel);
-  checkZoomLevel();
-  
-  console.log('[Lesson4] Start button configured');
-}
-
-/**
- * Create direction arrow
- */
-function createDirectionArrow() {
-  const arrow = new fabric.Triangle({ 
-    width: STYLE.ARROW_SIZE, 
-    height: STYLE.ARROW_SIZE, 
-    fill: STYLE.ARROW_COLOR,
-    left: 0, 
-    top: 0, 
-    angle: 0,
-    selectable: false, 
+  owlWithHelmet.set({
+    selectable: false,
     evented: false,
-    originX: 'center',
-    originY: 'center',
     visible: true
   });
   
-  try { arrow.tutorialId = 'MakerMachineArrow'; } catch (e) {}
-  canvas.add(arrow);
-  arrow.setCoords();
+  canvas.add(owlWithHelmet);
+  owlWithHelmet.setCoords();
   
-  lesson4State.objects.directionArrow = arrow;
-  return arrow;
+  try {
+    owlWithHelmet.tutorialId = 'Owl_with_Helmet';
+  } catch (e) {
+    console.warn('[Lesson4] Could not set tutorialId:', e);
+  }
+  
+  lesson4State.objects.owlWithHelmet = owlWithHelmet;
+  console.log('[Lesson4] Owl with helmet added to canvas');
 }
 
 /**
- * Start arrow animation
+ * Setup closed toolbox (initially visible, becomes hidden when unlocked)
  */
-function startArrowAnimation() {
-  const arrow = lesson4State.objects.directionArrow;
-  const machine = lesson4State.objects.machine;
+function setupToolboxClosed(toolboxClosed) {
+  if (!toolboxClosed) {
+    console.warn('[Lesson4] ToolboxClosed not found');
+    return;
+  }
   
-  if (!arrow || !machine) return;
+  toolboxClosed.set({ 
+    selectable: false, 
+    evented: false, 
+    visible: true 
+  });
   
-  let isAnimating = true;
-  const startTime = performance.now();
-  const edgeMargin = INTERACTION_THRESHOLD.ARROW_EDGE_MARGIN;
+  const baseX = canvas.getWidth() * LAYOUT.TOOLBOX_X_RATIO;
+  const topY = canvas.getHeight() / 2 + LAYOUT.TOOLBOX_Y_OFFSET;
   
-  const animate = (now) => {
-    if (!isAnimating) return;
+  toolboxClosed.left = baseX;
+  toolboxClosed.top = topY;
+  
+  canvas.add(toolboxClosed);
+  toolboxClosed.setCoords();
+  
+  try { 
+    toolboxClosed.tutorialId = 'ToolboxClosed'; 
+  } catch (e) {
+    console.warn('[Lesson4] Could not set tutorialId:', e);
+  }
+  
+  lesson4State.objects.toolboxClosed = toolboxClosed;
+  console.log('[Lesson4] ToolboxClosed added');
+}
+
+/**
+ * Setup open toolbox (initially hidden, becomes visible when unlocked)
+ */
+function setupToolboxOpen(toolboxOpen) {
+  if (!toolboxOpen) {
+    console.warn('[Lesson4] ToolboxOpen not found');
+    return;
+  }
+  
+  // The SVG has class="st14" which sets display:none - we need to override this
+  // by ensuring all internal objects are visible when we show the group
+  if (toolboxOpen._objects) {
+    toolboxOpen._objects.forEach(obj => {
+      obj.visible = true;
+      obj.opacity = 1;
+    });
+  }
+  
+  toolboxOpen.set({ 
+    selectable: false, 
+    evented: false, 
+    visible: false, // Hidden until key unlocks
+    opacity: 1
+  });
+  
+  const baseX = canvas.getWidth() * LAYOUT.TOOLBOX_X_RATIO;
+  const topY = canvas.getHeight() / 2 + LAYOUT.TOOLBOX_Y_OFFSET;
+  
+  toolboxOpen.left = baseX;
+  toolboxOpen.top = topY;
+  
+  canvas.add(toolboxOpen);
+  toolboxOpen.setCoords();
+  
+  try { 
+    toolboxOpen.tutorialId = 'ToolboxOpen'; 
+  } catch (e) {
+    console.warn('[Lesson4] Could not set tutorialId:', e);
+  }
+  
+  lesson4State.objects.toolboxOpen = toolboxOpen;
+  console.log('[Lesson4] ToolboxOpen added (hidden), internal objects:', toolboxOpen._objects?.length || 0);
+}
+
+/**
+ * Setup the key object (for unlocking the toolbox)
+ */
+function setupKey(key) {
+  if (!key) {
+    console.warn('[Lesson4] Key not found');
+    return;
+  }
+  
+  key.set({ 
+    selectable: true, 
+    evented: true, 
+    visible: true,
+    lockScalingX: true,
+    lockScalingY: true,
+    lockUniScaling: true
+  });
+  
+  canvas.add(key);
+  key.setCoords();
+  
+  // Hide scaling controls, show rotation
+  if (typeof key.setControlsVisibility === 'function') {
+    key.setControlsVisibility({ 
+      mt: false, mb: false, ml: false, mr: false, 
+      bl: false, br: false, tl: false, tr: false,
+      mtr: true // Keep rotation control
+    });
+  }
+  
+  try { 
+    key.tutorialId = 'Key'; 
+  } catch (e) {
+    console.warn('[Lesson4] Could not set tutorialId:', e);
+  }
+  
+  lesson4State.objects.key = key;
+  console.log('[Lesson4] Key added');
+}
+
+/**
+ * Setup tool objects at their original SVG positions (not in circle)
+ */
+function setupTools(tools) {
+  const addedTools = [];
+  
+  Object.values(tools).forEach(tool => {
+    if (!tool) return;
     
-    const vpt = canvas.viewportTransform;
-    const zoom = canvas.getZoom();
-    const viewportCenterX = -vpt[4] / zoom + (canvas.getWidth() / zoom) / 2;
-    const viewportCenterY = -vpt[5] / zoom + (canvas.getHeight() / zoom) / 2;
+    tool.set({ 
+      selectable: false, // Initially not selectable until toolbox is opened
+      evented: false,
+      visible: true,
+      lockScalingX: true, 
+      lockScalingY: true, 
+      lockUniScaling: true 
+    });
     
-    const machineRect = machine.getBoundingRect(true);
-    const machineCenterX = machineRect.left + machineRect.width / 2;
-    const machineCenterY = machineRect.top + machineRect.height / 2;
+    canvas.add(tool);
+    tool.setCoords();
     
-    const vectorX = machineCenterX - viewportCenterX;
-    const vectorY = machineCenterY - viewportCenterY;
-    const vectorLength = Math.sqrt(vectorX * vectorX + vectorY * vectorY);
-    
-    if (vectorLength === 0) {
-      arrow.visible = false;
-      arrow.dirty = true;
-      canvas.requestRenderAll();
-      fabric.util.requestAnimFrame(animate);
-      return;
-    }
-    
-    const dirX = vectorX / vectorLength;
-    const dirY = vectorY / vectorLength;
-    const angleRad = Math.atan2(dirY, dirX);
-    const angleDeg = angleRad * 180 / Math.PI;
-    
-    const viewportWidth = canvas.getWidth() / zoom;
-    const viewportHeight = canvas.getHeight() / zoom;
-    const viewportLeft = viewportCenterX - viewportWidth / 2;
-    const viewportTop = viewportCenterY - viewportHeight / 2;
-    const viewportRight = viewportLeft + viewportWidth;
-    const viewportBottom = viewportTop + viewportHeight;
-    
-    const margin = edgeMargin / zoom;
-    const intersections = [];
-    
-    if (dirX > 0) {
-      const t = (viewportRight - margin - viewportCenterX) / dirX;
-      const y = viewportCenterY + t * dirY;
-      if (y >= viewportTop + margin && y <= viewportBottom - margin) {
-        intersections.push({ x: viewportRight - margin, y, t });
-      }
-    }
-    
-    if (dirX < 0) {
-      const t = (viewportLeft + margin - viewportCenterX) / dirX;
-      const y = viewportCenterY + t * dirY;
-      if (y >= viewportTop + margin && y <= viewportBottom - margin) {
-        intersections.push({ x: viewportLeft + margin, y, t });
-      }
-    }
-    
-    if (dirY > 0) {
-      const t = (viewportBottom - margin - viewportCenterY) / dirY;
-      const x = viewportCenterX + t * dirX;
-      if (x >= viewportLeft + margin && x <= viewportRight - margin) {
-        intersections.push({ x, y: viewportBottom - margin, t });
-      }
-    }
-    
-    if (dirY < 0) {
-      const t = (viewportTop + margin - viewportCenterY) / dirY;
-      const x = viewportCenterX + t * dirX;
-      if (x >= viewportLeft + margin && x <= viewportRight - margin) {
-        intersections.push({ x, y: viewportTop + margin, t });
-      }
-    }
-    
-    let intersectX, intersectY;
-    if (intersections.length > 0) {
-      intersections.sort((a, b) => a.t - b.t);
-      intersectX = intersections[0].x;
-      intersectY = intersections[0].y;
-    } else {
-      intersectX = viewportCenterX;
-      intersectY = viewportCenterY;
-    }
-    
-    // Add wiggle
-    const wiggleT = ((now - startTime) / ANIMATION_DURATION.ARROW_WIGGLE_PERIOD) * Math.PI * 2;
-    const wiggleAmount = Math.sin(wiggleT) * 10 / zoom;
-    intersectX += dirX * wiggleAmount;
-    intersectY += dirY * wiggleAmount;
-    
-    // Check visibility
-    const machineVisible = (
-      machineRect.left < viewportRight &&
-      machineRect.left + machineRect.width > viewportLeft &&
-      machineRect.top < viewportBottom &&
-      machineRect.top + machineRect.height > viewportTop
-    );
-    
-    if (machineVisible) {
-      arrow.visible = false;
-    } else {
-      arrow.visible = true;
-      arrow.set({
-        left: intersectX,
-        top: intersectY,
-        angle: angleDeg + 90
+    // Hide scaling controls
+    if (typeof tool.setControlsVisibility === 'function') {
+      tool.setControlsVisibility({ 
+        mt: false, mb: false, ml: false, mr: false, 
+        bl: false, br: false, tl: false, tr: false 
       });
-      arrow.setCoords();
     }
     
-    canvas.requestRenderAll();
-    fabric.util.requestAnimFrame(animate);
+    addedTools.push(tool);
+  });
+  
+  // Don't reposition - keep tools at their original SVG positions
+  
+  lesson4State.objects.tools = addedTools;
+  console.log('[Lesson4] Added', addedTools.length, 'tools (initially locked)');
+}
+
+/**
+ * Check if key is over the center of the closed toolbox
+ */
+function isKeyOverToolboxCenter() {
+  const { key, toolboxClosed } = lesson4State.objects;
+  if (!key || !toolboxClosed) {
+    return false;
+  }
+  
+  const keyBounds = key.getBoundingRect(true);
+  const toolboxBounds = toolboxClosed.getBoundingRect(true);
+  
+  const keyCenterX = keyBounds.left + keyBounds.width / 2;
+  const keyCenterY = keyBounds.top + keyBounds.height / 2;
+  const toolboxCenterX = toolboxBounds.left + toolboxBounds.width / 2;
+  const toolboxCenterY = toolboxBounds.top + toolboxBounds.height / 2;
+  
+  const distance = Math.sqrt(
+    Math.pow(keyCenterX - toolboxCenterX, 2) +
+    Math.pow(keyCenterY - toolboxCenterY, 2)
+  );
+  
+  // Allow 50px tolerance for being "over center"
+  return distance < 50;
+}
+
+/**
+ * Check if key has been rotated enough (any rotation counts)
+ */
+function hasKeyRotated() {
+  const { key } = lesson4State.objects;
+  if (!key) return false;
+  
+  // Check if key has been rotated at least 15 degrees from original
+  const currentAngle = key.angle || 0;
+  return Math.abs(currentAngle) >= 15;
+}
+
+/**
+ * Handle unlocking the toolbox
+ */
+function handleUnlock() {
+  if (lesson4State.keyUnlocked) return;
+  
+  lesson4State.keyUnlocked = true;
+  lesson4State.phase = 'collect';
+  
+  const { key, toolboxClosed, toolboxOpen, tools } = lesson4State.objects;
+  
+  // Clear selection first to remove selection box
+  canvas.discardActiveObject();
+  
+  // Hide key and closed toolbox
+  if (key) {
+    key.visible = false;
+    key.selectable = false;
+    key.evented = false;
+    key.setCoords();
+  }
+  
+  if (toolboxClosed) {
+    toolboxClosed.visible = false;
+    toolboxClosed.setCoords();
+  }
+  
+  // Show open toolbox
+  if (toolboxOpen) {
+    toolboxOpen.visible = true;
+    toolboxOpen.opacity = 1;
+    toolboxOpen.setCoords();
+    
+    // Bring to front so it's not hidden behind other objects
+    canvas.bringToFront(toolboxOpen);
+  }
+  
+  // Enable tools for selection
+  tools.forEach(tool => {
+    tool.selectable = true;
+    tool.evented = true;
+    tool.setCoords();
+  });
+  
+  // Enable box selection for marquee
+  if (canvas) {
+    canvas.selection = true;
+    canvas.allowBoxSelection = true;
+  }
+  
+  // Update instructions
+  updateInstructionPanel();
+  
+  canvas.requestRenderAll();
+  
+  console.log('[Lesson4] Toolbox unlocked! Marquee selection enabled.');
+}
+
+/**
+ * Check if pointer is over the open toolbox
+ */
+function isPointerOverToolbox(event) {
+  if (!event || !lesson4State.objects.toolboxOpen) return false;
+  
+  const pointer = canvas.getPointer(event);
+  const toolboxRect = lesson4State.objects.toolboxOpen.getBoundingRect(true);
+  
+  return (
+    pointer.x >= toolboxRect.left && 
+    pointer.x <= toolboxRect.left + toolboxRect.width &&
+    pointer.y >= toolboxRect.top && 
+    pointer.y <= toolboxRect.top + toolboxRect.height
+  );
+}
+
+/**
+ * Check if all tools are selected
+ */
+function areAllToolsSelected() {
+  const activeObjects = canvas.getActiveObjects();
+  const toolCount = lesson4State.objects.tools.length;
+  
+  if (activeObjects.length !== toolCount) return false;
+  
+  // Verify all active objects are tools
+  return activeObjects.every(obj => lesson4State.objects.tools.includes(obj));
+}
+
+/**
+ * Handle successful tool collection
+ */
+function handleSuccess() {
+  if (lesson4State.completed) return;
+  
+  lesson4State.completed = true;
+  
+  const selectedTools = canvas.getActiveObjects().slice();
+  selectedTools.forEach(tool => canvas.remove(tool));
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+  
+  // Animate toolbox with double bounce
+  if (lesson4State.objects.toolboxOpen) {
+    animationController.doubleBounce(lesson4State.objects.toolboxOpen, () => {
+      showNextButton();
+    });
+  } else {
+    showNextButton();
+  }
+  
+  // Cleanup and restore selection behavior
+  cleanupEventHandlers();
+  
+  console.info('[Lesson4] All tools collected!');
+}
+
+/**
+ * Show next lesson button
+ */
+function showNextButton() {
+  const panel = document.getElementById('panel');
+  if (!panel) return;
+  
+  let button = document.getElementById('next-tutorial-btn-4');
+  if (button) return;
+  
+  button = document.createElement('button');
+  button.id = 'next-tutorial-btn-4';
+  button.style.cssText = `
+    display: block;
+    width: 100%;
+    height: 64px;
+    margin: 32px auto 0 auto;
+    background: ${STYLE.PRIMARY_COLOR};
+    border: none;
+    border-radius: ${STYLE.BUTTON_BORDER_RADIUS};
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  `;
+  button.innerHTML = '<i class="fa-solid fa-arrow-right" style="font-size:2.5em;color:white;"></i>';
+  
+  button.onclick = () => {
+    import('./tutorial.js').then(module => {
+      module.startLesson5();
+    });
   };
   
-  fabric.util.requestAnimFrame(animate);
-  
-  lesson4State.animations.arrow = { stop: () => { isAnimating = false; } };
+  panel.appendChild(button);
 }
 
 /**
- * Cleanup
+ * Handle key modified event (for unlock phase) - fires after rotation/move complete
+ */
+function handleKeyModified(event) {
+  if (lesson4State.phase !== 'unlock') return;
+  if (lesson4State.keyUnlocked) return;
+  
+  const obj = event.target;
+  if (obj !== lesson4State.objects.key) return;
+  
+  const isOverCenter = isKeyOverToolboxCenter();
+  const hasRotated = hasKeyRotated();
+  
+  // Check if key is over toolbox center and has been rotated
+  if (isOverCenter && hasRotated) {
+    handleUnlock();
+  }
+}
+
+/**
+ * Handle key rotating event (for unlock phase)
+ */
+function handleKeyRotating(event) {
+  if (lesson4State.phase !== 'unlock') return;
+  if (lesson4State.keyUnlocked) return;
+  
+  const obj = event.target;
+  if (obj !== lesson4State.objects.key) return;
+  
+  const isOverCenter = isKeyOverToolboxCenter();
+  const hasRotated = hasKeyRotated();
+  
+  // Check if key is over toolbox center and has been rotated
+  if (isOverCenter && hasRotated) {
+    handleUnlock();
+  }
+}
+
+/**
+ * Handle key moving event (for unlock phase)
+ */
+function handleKeyMoving(event) {
+  if (lesson4State.phase !== 'unlock') return;
+  if (lesson4State.keyUnlocked) return;
+  
+  // Just track position, unlock happens on rotation
+}
+
+/**
+ * Handle object moving event (for collect phase)
+ */
+function handleObjectMoving(event) {
+  if (lesson4State.phase !== 'collect') return;
+  if (lesson4State.completed) return;
+  
+  lesson4State.isDragging = true;
+  
+  if (!event || !event.e) return;
+  if (!areAllToolsSelected()) return;
+  
+  if (isPointerOverToolbox(event.e)) {
+    handleSuccess();
+  }
+}
+
+/**
+ * Handle mouse up event
+ */
+function handleMouseUp(event) {
+  lesson4State.isDragging = false;
+}
+
+/**
+ * Attach event handlers
+ */
+function attachEventHandlers() {
+  canvas.on('object:rotating', handleKeyRotating);
+  canvas.on('object:modified', handleKeyModified);
+  canvas.on('object:moving', handleKeyMoving);
+  canvas.on('object:moving', handleObjectMoving);
+  canvas.on('mouse:up', handleMouseUp);
+}
+
+/**
+ * Cleanup event handlers
+ */
+function cleanupEventHandlers() {
+  canvas.off('object:rotating', handleKeyRotating);
+  canvas.off('object:modified', handleKeyModified);
+  canvas.off('object:moving', handleKeyMoving);
+  canvas.off('object:moving', handleObjectMoving);
+  canvas.off('mouse:up', handleMouseUp);
+}
+
+/**
+ * Cleanup function
  */
 function cleanup() {
   if (animationController) {
     animationController.stopAllAnimations();
   }
   
-  if (lesson4State.animations.arrow) {
-    lesson4State.animations.arrow.stop();
-  }
-  if (lesson4State.animations.gears) {
-    lesson4State.animations.gears.stop();
-  }
-  if (lesson4State.animations.owlWiggle) {
-    lesson4State.animations.owlWiggle.stop();
+  cleanupEventHandlers();
+  
+  if (lesson4State.objects.owlWithHelmet && canvas.contains(lesson4State.objects.owlWithHelmet)) {
+    canvas.remove(lesson4State.objects.owlWithHelmet);
   }
   
-  canvas.off('mouse:wheel', checkZoomLevel);
-  canvas.off('after:render', checkZoomLevel);
+  if (lesson4State.objects.toolboxClosed && canvas.contains(lesson4State.objects.toolboxClosed)) {
+    canvas.remove(lesson4State.objects.toolboxClosed);
+  }
   
-  Object.values(lesson4State.objects).forEach(obj => {
-    if (obj && canvas.contains(obj)) {
-      canvas.remove(obj);
+  if (lesson4State.objects.toolboxOpen && canvas.contains(lesson4State.objects.toolboxOpen)) {
+    canvas.remove(lesson4State.objects.toolboxOpen);
+  }
+  
+  if (lesson4State.objects.key && canvas.contains(lesson4State.objects.key)) {
+    canvas.remove(lesson4State.objects.key);
+  }
+  
+  lesson4State.objects.tools.forEach(tool => {
+    if (tool && canvas.contains(tool)) {
+      canvas.remove(tool);
     }
   });
   
@@ -668,7 +634,7 @@ function cleanup() {
 }
 
 /**
- * Start Lesson 3
+ * Start Lesson 4
  */
 export async function startLesson4() {
   if (lesson4State.isActive) {
@@ -677,10 +643,16 @@ export async function startLesson4() {
   }
   
   lesson4State.isActive = true;
+  lesson4State.phase = 'unlock';
+  
+  // Initially disable box selection until toolbox is unlocked
+  if (canvas) {
+    canvas.selection = true;
+    canvas.allowBoxSelection = false;
+  }
   
   try {
     history.replaceState(null, '', '#lesson=4');
-    // Trigger hashchange event to update lesson buttons
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   } catch (e) {
     console.warn('[Lesson4] Could not update URL:', e);
@@ -699,28 +671,34 @@ export async function startLesson4() {
   
   console.info('[Lesson4] Loading assets...');
   
-  // Load helper objects
-  const helpers = await loadHelperObjects();
-  setupHelperObjects(helpers);
+  const assets = await loadLessonAssets();
   
-  // Load machine
-  const machine = await loadMachineAsset();
-  if (!machine) {
-    console.error('[Lesson4] Failed to load machine');
-    return;
-  }
+  if (!assets.owlWithHelmet) console.warn('[Lesson4] Owl with helmet not found');
+  if (!assets.toolboxClosed) console.warn('[Lesson4] ToolboxClosed not found');
+  if (!assets.toolboxOpen) console.warn('[Lesson4] ToolboxOpen not found');
+  if (!assets.key) console.warn('[Lesson4] Key not found');
   
-  disableObjectCaching(machine);
-  positionMachine(machine);
-  setupMachineBulbs(machine);
-  disableMainObjects(machine);
-  setupGears(machine);
+  // Setup owl with helmet first (background element)
+  if (assets.owlWithHelmet) setupOwlWithHelmet(assets.owlWithHelmet);
   
-  const button = findStartButton(machine);
-  setupStartButton(button);
+  // Setup both toolbox states
+  if (assets.toolboxClosed) setupToolboxClosed(assets.toolboxClosed);
+  if (assets.toolboxOpen) setupToolboxOpen(assets.toolboxOpen);
   
-  const arrow = createDirectionArrow();
-  startArrowAnimation();
+  // Setup key
+  if (assets.key) setupKey(assets.key);
+  
+  // Setup tools (at their original positions, initially not selectable)
+  const tools = {
+    wrench: assets.wrench,
+    screwdriver: assets.screwdriver,
+    saw: assets.saw,
+    pencil: assets.pencil,
+    hammer: assets.hammer
+  };
+  
+  setupTools(tools);
+  attachEventHandlers();
   
   canvas.requestRenderAll();
   
@@ -728,7 +706,7 @@ export async function startLesson4() {
 }
 
 /**
- * Restart Lesson 3
+ * Restart Lesson 4
  */
 export async function restartLesson4() {
   cleanup();

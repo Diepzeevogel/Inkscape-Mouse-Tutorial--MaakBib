@@ -1,7 +1,7 @@
 import { initCanvas, centerCanvas, canvas } from './canvas.js';
 import { installWelcomeOverlay, createSelectOverlayButton } from './overlay.js';
-import { startTutorial, startTutorialDirect, startLesson2, startLesson3, startLesson4, startThirdTutorial } from './tutorial.js';
-import { startLesson5, cleanupLesson5 } from './Lesson5.js';
+import { startTutorial, startTutorialDirect, startLesson2, startLesson3, startLesson4, startLesson5 } from './tutorial.js';
+import { startLesson6, cleanupLesson6 } from './Lesson6.js';
 import { shapeDrawingController } from './ShapeDrawingController.js';
 
 // Device detection - check for desktop/laptop with mouse
@@ -132,7 +132,8 @@ const lessons = [
   { id: 2, title: 'Les 2', icon: 'assets/icons/tutorial_icons/les2.svg' },
   { id: 3, title: 'Les 3', icon: 'assets/icons/tutorial_icons/les3.svg' },
   { id: 4, title: 'Les 4', icon: 'assets/icons/tutorial_icons/les4.svg' },
-  { id: 5, title: 'Les 5', icon: 'assets/icons/tutorial_icons/les5.svg' }
+  { id: 5, title: 'Les 5', icon: 'assets/icons/tutorial_icons/les5.svg' },
+  { id: 6, title: 'Les 6', icon: 'assets/icons/tutorial_icons/les6.svg' }
 ];
 
 function createLessonButtons() {
@@ -140,7 +141,9 @@ function createLessonButtons() {
   if (!container) {
     container = document.createElement('div');
     container.id = 'lesson-buttons';
-    container.style.display = 'flex';
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(48px, max-content))';
+    container.style.maxWidth = 'calc(5 * 48px + 4 * 8px)'; // 5 columns max with gaps
     container.style.gap = '8px';
     container.style.justifyContent = 'center';
     container.style.alignItems = 'center';
@@ -198,6 +201,7 @@ function createLessonButtons() {
         if (target === 3) await startLesson3();
         if (target === 4) await startLesson4();
         if (target === 5) await startLesson5();
+        if (target === 6) await startLesson6();
         updateLessonButtons();
         return;
       }
@@ -216,7 +220,7 @@ function createLessonButtons() {
         objs.forEach(o => canvas.remove(o));
         canvas.discardActiveObject();
         // Clean up any active lesson
-        if (cur === 5) cleanupLesson5();
+        if (cur === 6) cleanupLesson6();
       } catch (err) {}
 
       if (target === 1) {
@@ -229,6 +233,8 @@ function createLessonButtons() {
         await startLesson4();
       } else if (target === 5) {
         await startLesson5();
+      } else if (target === 6) {
+        await startLesson6();
       }
       updateLessonButtons();
     });
@@ -458,6 +464,12 @@ async function startFromHash() {
         if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
       } catch (e) {}
       await startLesson5();
+    } else if (lesson === 6) {
+      try {
+        if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
+        if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
+      } catch (e) {}
+      await startLesson6();
     }
   } catch (e) { /* ignore */ }
 }

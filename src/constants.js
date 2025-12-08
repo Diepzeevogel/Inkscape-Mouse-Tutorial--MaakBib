@@ -61,7 +61,8 @@ export const ASSETS = {
   LESSON_2_SVG: 'assets/tutorials/les2.svg',
   LESSON_3_SVG: 'assets/tutorials/les3.svg',
   LESSON_4_SVG: 'assets/tutorials/les4.svg',
-  LESSON_5_SVG: 'assets/tutorials/les5.svg'
+  LESSON_5_SVG: 'assets/tutorials/les5.svg',
+  LESSON_6_SVG: 'assets/tutorials/les6.svg'
 };
 
 // SVG Element IDs
@@ -88,6 +89,15 @@ export const SVG_IDS = {
     HAMMER: 'Hammer'
   },
   LESSON_4: {
+    // Marquee selection lesson - uses same structure as Lesson 3
+    TOOLBOX: 'Toolbox',
+    WRENCH: 'Wrench',
+    SCREWDRIVER: 'Screwdriver',
+    SAW: 'Saw',
+    PENCIL: 'Pencil',
+    HAMMER: 'Hammer'
+  },
+  LESSON_5: {
     MACHINE_LAYER: 'Layer_2',
     BULB_ON: 'bulb_on',
     BULB_OFF: 'bulb_off',
@@ -95,7 +105,7 @@ export const SVG_IDS = {
     MAIN: 'main',
     GEAR: 'gear'
   },
-  LESSON_5: {
+  LESSON_6: {
     SCREWDRIVER: 'Screwdriver',
     HANDLE: 'Handle',
     TOP: 'Top'
@@ -170,6 +180,10 @@ export const LESSON_FEATURES = {
     SHAPE_TOOLS: false
   },
   5: {
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false
+  },
+  6: {
     COPY_PASTE: true,
     SHAPE_TOOLS: true
   }
