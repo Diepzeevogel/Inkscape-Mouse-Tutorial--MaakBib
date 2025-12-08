@@ -702,23 +702,10 @@ function enterNodeEditMode(obj, canvas) {
   // Store original controls
   originalControls.set(targetObj, { ...targetObj.controls });
   
-  // Store original bounds for restoration later
-  targetObj._nodeEditOriginalBounds = {
-    left: targetObj.left,
-    top: targetObj.top,
-    width: targetObj.width,
-    height: targetObj.height,
-    pathOffset: { ...targetObj.pathOffset }
-  };
-  
-  // Expand bounding box to cover entire canvas to prevent clipping during editing
-  // This ensures nodes can be dragged anywhere without the path being clipped
-  const canvasWidth = canvas.width || 2000;
-  const canvasHeight = canvas.height || 2000;
-  targetObj.set({
-    width: canvasWidth * 2,
-    height: canvasHeight * 2
-  });
+  // Disable object caching during node editing to prevent clipping
+  // when nodes are dragged outside the original bounding box
+  targetObj._nodeEditOriginalCaching = targetObj.objectCaching;
+  targetObj.objectCaching = false;
   
   // Set mode
   objectModes.set(targetObj, MODE.NODE_EDIT);
@@ -760,8 +747,11 @@ function enterNodeEditMode(obj, canvas) {
 function exitNodeEditMode(obj, canvas) {
   if (!obj) return;
   
-  // Clean up stored original bounds
-  delete obj._nodeEditOriginalBounds;
+  // Restore object caching
+  if (obj._nodeEditOriginalCaching !== undefined) {
+    obj.objectCaching = obj._nodeEditOriginalCaching;
+    delete obj._nodeEditOriginalCaching;
+  }
   
   // Recalculate bounding box for paths so handles stay within visible area
   if (obj.path && Array.isArray(obj.path)) {
