@@ -63,6 +63,7 @@ export const ASSETS = {
   LESSON_4_SVG: 'assets/tutorials/les4.svg',
   LESSON_5_SVG: 'assets/tutorials/les5.svg',
   LESSON_6_SVG: 'assets/tutorials/les6.svg'
+  , LESSON_6_BADGE: 'assets/tutorials/les6_badge.svg'
 };
 
 // SVG Element IDs
@@ -189,8 +190,8 @@ export const LESSON_FEATURES = {
     NODE_EDITING: false
   },
   6: {
-    COPY_PASTE: true,
-    SHAPE_TOOLS: true,
-    NODE_EDITING: true
+    COPY_PASTE: false,
+    SHAPE_TOOLS: false,
+    NODE_EDITING: false
   }
 };

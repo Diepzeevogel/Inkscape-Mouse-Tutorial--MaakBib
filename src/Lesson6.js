@@ -97,20 +97,41 @@ function updateInstructionPanel() {
  */
 async function loadLessonAssets() {
   try {
-    // Load individual parts from the SVG
+    // Load legacy screwdriver parts if present (fallback)
     const parts = await assetLoader.loadFabricGroups(
       ASSETS.LESSON_6_SVG,
       ['Handle', 'Top']
     );
 
-    console.log('[Lesson6] Loaded parts:', Object.keys(parts));
-    
+    console.log('[Lesson6] Loaded parts (fallback):', Object.keys(parts));
     return {
       handle: parts['Handle'],
       top: parts['Top']
     };
   } catch (error) {
-    console.error('[Lesson6] Failed to load assets:', error);
+    console.warn('[Lesson6] Fallback assets not found:', error);
+    return { handle: null, top: null };
+  }
+}
+
+/**
+ * Load the lesson badge (Badge, Ink, Hole groups) from the badge SVG
+ */
+async function loadBadgeAssets() {
+  try {
+    const parts = await assetLoader.loadFabricGroups(
+      ASSETS.LESSON_6_BADGE,
+      ['Badge', 'Ink', 'Hole']
+    );
+
+    console.log('[Lesson6] Loaded badge parts:', Object.keys(parts));
+    return {
+      badge: parts['Badge'],
+      ink: parts['Ink'],
+      hole: parts['Hole']
+    };
+  } catch (error) {
+    console.error('[Lesson6] Failed to load badge assets:', error);
     throw error;
   }
 }
@@ -239,58 +260,196 @@ export async function startLesson6() {
     resetViewport();
     canvas.clear();
 
-    // Load assets
-    console.log('[Lesson6] Loading assets...');
-    const { handle, top } = await loadLessonAssets();
-
-    // Setup screwdriver
-    const { handle: handleObj, top: topObj, moveListener } = setupScrewdriver(handle, top);
-    lesson6State.objects.handle = handleObj;
-    lesson6State.objects.top = topObj;
-    lesson6State.moveListener = moveListener;
-
     // Setup Fill & Stroke panel
     lesson6State.fillStrokePanel = setupFillStrokePanel();
 
-    // Enable copy-paste if configured for this lesson
-    if (LESSON_FEATURES[6]?.COPY_PASTE) {
-      copyPasteController.enable();
-      undoRedoController.enable();
-      console.log('[Lesson6] Copy-paste and undo/redo enabled (Ctrl+C/V/Z/Y, Delete)');
+    // Load badge assets (badge, ink stains, hole)
+    console.log('[Lesson6] Loading badge assets...');
+    const { badge, ink, hole } = await loadBadgeAssets();
+
+    if (!badge) {
+      console.error('[Lesson6] Badge asset missing, aborting lesson setup');
+      return;
     }
 
-    // Enable shape tools if configured for this lesson
-    if (LESSON_FEATURES[6]?.SHAPE_TOOLS) {
-      const rectTool = document.getElementById('tool-rect');
-      const ellipseTool = document.getElementById('tool-ellipse');
-      const penTool = document.getElementById('tool-pen');
-      if (rectTool) {
-        rectTool.disabled = false;
-        rectTool.removeAttribute('aria-disabled');
+    // Add background objects from lesson 5 if available so badge can cover them
+    // Try loading lesson 5 main group as backdrop (non-interactive)
+    try {
+      const backdropParts = await assetLoader.loadFabricGroups(ASSETS.LESSON_5_SVG, ['main']);
+      if (backdropParts && backdropParts['main']) {
+        const backdrop = backdropParts['main'];
+        backdrop.set({ selectable: false, evented: false, opacity: 1 });
+        canvas.add(backdrop);
       }
-      if (ellipseTool) {
-        ellipseTool.disabled = false;
-        ellipseTool.removeAttribute('aria-disabled');
-      }
-      if (penTool) {
-        penTool.disabled = false;
-        penTool.removeAttribute('aria-disabled');
-      }
-      // Set FillStrokePanel reference so shapes and pen tool use the current colors
-      shapeDrawingController.setFillStrokePanel(lesson6State.fillStrokePanel);
-      penToolController.setFillStrokePanel(lesson6State.fillStrokePanel);
-      console.log('[Lesson6] Shape tools enabled');
+    } catch (e) {
+      console.warn('[Lesson6] Could not load backdrop from lesson 5:', e);
     }
 
-    // Enable node editing tool if configured for this lesson
-    if (LESSON_FEATURES[6]?.NODE_EDITING) {
-      const nodeTool = document.getElementById('tool-node');
-      if (nodeTool) {
-        nodeTool.disabled = false;
-        nodeTool.removeAttribute('aria-disabled');
-      }
-      console.log('[Lesson6] Node editing tool enabled');
+    // Place badge small in front of canvas and animate it scaling up
+    badge.set({ selectable: false, evented: false, originX: 'center', originY: 'center' });
+    // center it near the machine area (approx center)
+    badge.left = canvas.width / 2;
+    badge.top = canvas.height / 2;
+    badge.scaleX = badge.scaleY = 0.05; // start very small
+    badge.setCoords();
+    canvas.add(badge);
+
+    // Add ink stains (selectable initially for deletion)
+    if (ink) {
+      ink.set({ selectable: true, evented: true, originX: 'center', originY: 'center' });
+      ink.left = badge.left;
+      ink.top = badge.top;
+      canvas.add(ink);
     }
+
+    // Add hole object but keep hidden (if provided)
+    if (hole) {
+      hole.set({ selectable: false, evented: false, visible: false, originX: 'center', originY: 'center' });
+      hole.left = badge.left;
+      hole.top = badge.top;
+      canvas.add(hole);
+    }
+
+    canvas.requestRenderAll();
+
+    // Animate badge from small to covering most of the canvas
+    const targetScale = Math.max((canvas.width * 0.8) / (badge.width || canvas.width), (canvas.height * 0.8) / (badge.height || canvas.height));
+    fabric.util.animate({
+      startValue: 0.05,
+      endValue: targetScale,
+      duration: 1400,
+      easing: fabric.util.ease.easeOutCubic,
+      onChange(value) {
+        badge.scaleX = badge.scaleY = value;
+        badge.setCoords();
+        canvas.requestRenderAll();
+      },
+      onComplete() {
+        // When badge is large enough, hide other lesson 5 elements
+        canvas.forEachObject(obj => {
+          if (obj === badge || obj === ink || obj === hole) return;
+          // Hide any lesson-5 backdrop elements
+          obj.visible = false;
+          obj.evented = false;
+          obj.selectable = false;
+        });
+
+        // Make badge group selectable as a whole now
+        badge.set({ selectable: true, evented: true });
+
+        // Only ink stains remain selectable for deletion at this stage
+        if (ink) {
+          ink.bringToFront();
+          ink.set({ selectable: true, evented: true });
+        }
+
+        canvas.requestRenderAll();
+
+        // Update instructions for deleting ink stains
+        const panel = document.getElementById('panel');
+        if (panel) {
+          panel.innerHTML = `
+            <h3>Opdracht: Verwijder de inktplekken</h3>
+            <p>De machine heeft een badge uitgespuwd. Verwijder alle inktplekken (<em>Ink</em>) door ze te selecteren en op <kbd>Delete</kbd> of <kbd>Backspace</kbd> te drukken.</p>
+            <p>Je kunt enkel de inktplekken selecteren. Als je klaar bent, selecteer de hele badge en zet de vulling uit via het Fill-panel.</p>
+          `;
+        }
+      }
+    });
+
+
+    // Copy-paste, shape tools and node editing are intentionally disabled for this lesson (only Fill/Stroke allowed)
+    console.log('[Lesson6] Interactive features restricted: only Fill/Stroke panel is enabled');
+
+    // Wire up event: when ink group is removed (all ink paths deleted), guide the user to select the badge group and remove fills
+    canvas.on('object:removed', (e) => {
+      // If removed object belonged to ink group, check remaining ink objects
+      // If no ink objects remain, update instructions
+      const inkObjects = canvas.getObjects().filter(o => o && o._objects && o._objects.some(s => s && s.type && s.type !== 'group') && o === ink);
+      // Simpler check: if ink group no longer exists on canvas
+      const hasInk = canvas.getObjects().includes(ink);
+      if (!hasInk) {
+        const panel = document.getElementById('panel');
+        if (panel) {
+          panel.innerHTML = `
+            <h3>Stap 2: Maak de badge leeg</h3>
+            <p>Selecteer de hele badge (klik op de Badge groep) en open het Fill-panel. Kies <strong>None</strong> of klik op het vakje zonder kleur om alle vullingen te verwijderen.</p>
+            <p>Als alle vullingen verwijderd zijn, de 'Hole' ontbreekt nog. Teken een cirkel van <strong>10 × 10</strong> met de Ellipse-tool om het gat toe te voegen.</p>
+          `;
+        }
+
+        // Make badge selectable so user can select it as a group
+        badge.set({ selectable: true, evented: true });
+        canvas.requestRenderAll();
+      }
+    });
+
+    // After badge is selected and user clears fill, we need to enable drawing a small circle (10x10)
+    // Wire selection: when user selects badge, show hint to clear fills
+    canvas.on('selection:created', (e) => {
+      const obj = canvas.getActiveObject();
+      if (obj === badge) {
+        // advise user via panel
+        const panel = document.getElementById('panel');
+        if (panel) panel.insertAdjacentHTML('beforeend', '<p>Nu: kies <strong>Fill: None</strong> in het Fill-panel.</p>');
+      }
+    });
+
+    // Listen for add of a new circle from the ShapeDrawingController (user-drawn)
+    // We'll detect newly added Ellipse with small size and animate it into the Hole position
+    canvas.on('object:added', (e) => {
+      const obj = e.target;
+      if (!obj) return;
+      if (obj.type === 'ellipse' || obj.type === 'circle') {
+        // Check approximate size (10 × 10 suggested) - ellipse uses rx/ry
+        const w = (obj.rx || obj.radius || obj.width/2) * 2;
+        const h = (obj.ry || obj.radius || obj.height/2) * 2;
+        if (Math.abs(w - 10) < 6 && Math.abs(h - 10) < 6) {
+          // Animate the new circle (outline pulse) then snap to hole position
+          obj.set({ strokeDashArray: [6,6], stroke: '#999', fill: 'transparent' });
+          obj.setCoords();
+          canvas.requestRenderAll();
+
+          // Compute target position from Hole group if available
+          if (hole) {
+            // Make hole visible while snapping
+            hole.visible = true;
+            hole.setCoords();
+
+            // Animate movement and snapping
+            const startLeft = obj.left;
+            const startTop = obj.top;
+            const endLeft = hole.left;
+            const endTop = hole.top;
+
+            fabric.util.animate({
+              startValue: 0,
+              endValue: 1,
+              duration: 600,
+              onChange(v) {
+                obj.left = startLeft + (endLeft - startLeft) * v;
+                obj.top = startTop + (endTop - startTop) * v;
+                obj.scaleX = obj.scaleY = 1; // ensure consistent
+                obj.setCoords();
+                canvas.requestRenderAll();
+              },
+              onComplete() {
+                // Snap exactly
+                obj.left = endLeft;
+                obj.top = endTop;
+                obj.set({ selectable: false, evented: false, hasControls: false });
+                obj.setCoords();
+                canvas.requestRenderAll();
+
+                // Mark lesson as focused only on badge now
+                const panel = document.getElementById('panel');
+                if (panel) panel.insertAdjacentHTML('beforeend', '<p>Hole geplaatst en vergrendeld.</p>');
+              }
+            });
+          }
+        }
+      }
+    });
 
     canvas.requestRenderAll();
     console.log('[Lesson6] Started successfully');
