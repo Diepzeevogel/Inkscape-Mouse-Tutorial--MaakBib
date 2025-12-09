@@ -658,6 +658,9 @@ function handleMouseDblClick(e, canvas) {
   } else if (target.path && Array.isArray(target.path)) {
     debugLog('[InkscapeTransformMode] Double-click on path - entering node edit mode');
     enterNodeEditMode(target, canvas);
+  } else if (target.type === 'rect' || target.type === 'circle') {
+    debugLog('[InkscapeTransformMode] Double-click on rect/circle - entering node edit mode (will convert to path)');
+    enterNodeEditMode(target, canvas);
   }
 }
 
@@ -735,6 +738,132 @@ function convertPolygonToPath(polygon, canvas) {
 }
 
 /**
+ * Convert a Rect object to a Path (rectangle outline)
+ * @param {fabric.Rect} rect - The rect to convert
+ * @param {fabric.Canvas} canvas - The canvas instance
+ * @returns {fabric.Path} The converted path object
+ */
+function convertRectToPath(rect, canvas) {
+  if (!rect) return null;
+
+  // Calculate rectangle corners in object coordinates
+  // Use rect.width/height which are unscaled values
+  const w = rect.width || 0;
+  const h = rect.height || 0;
+
+  // Rectangle path: M x y L x y L x y L x y Z
+  const pathData = [];
+
+  // Top-left
+  pathData.push(['M', -w/2, -h/2]);
+  // Top-right
+  pathData.push(['L', w/2, -h/2]);
+  // Bottom-right
+  pathData.push(['L', w/2, h/2]);
+  // Bottom-left
+  pathData.push(['L', -w/2, h/2]);
+  // Close
+  pathData.push(['Z']);
+
+  const path = new fabric.Path(pathData, {
+    fill: rect.fill,
+    stroke: rect.stroke,
+    strokeWidth: rect.strokeWidth,
+    strokeLineCap: rect.strokeLineCap,
+    strokeLineJoin: rect.strokeLineJoin,
+    opacity: rect.opacity,
+    left: rect.left,
+    top: rect.top,
+    originX: rect.originX,
+    originY: rect.originY,
+    angle: rect.angle,
+    scaleX: rect.scaleX,
+    scaleY: rect.scaleY,
+    _isConvertedPath: true,
+    _originalType: 'rect'
+  });
+
+  // Ensure the path's internal coordinates match the rect center-based coordinates
+  path.set({
+    width: w,
+    height: h
+  });
+
+  return path;
+}
+
+/**
+ * Convert a Circle object to a Path using 4 cubic bezier segments
+ * @param {fabric.Circle} circle - The circle to convert
+ * @param {fabric.Canvas} canvas - The canvas instance
+ * @returns {fabric.Path} The converted path object
+ */
+function convertCircleToPath(circle, canvas) {
+  if (!circle) return null;
+
+  const r = circle.radius || ((circle.width || 0) / 2);
+  const kappa = 0.5522847498307936; // approximation for a circle
+  const ox = r * kappa;
+
+  // Build path centered at 0,0
+  // Start at (r, 0)
+  const pathData = [];
+  pathData.push(['M', r, 0]);
+
+  // Quadrant 1: to (0, r)
+  pathData.push(['C', r, ox, ox, r, 0, r]);
+  // Quadrant 2: to (-r, 0)
+  pathData.push(['C', -ox, r, -r, ox, -r, 0]);
+  // Quadrant 3: to (0, -r)
+  pathData.push(['C', -r, -ox, -ox, -r, 0, -r]);
+  // Quadrant 4: back to (r, 0)
+  pathData.push(['C', ox, -r, r, -ox, r, 0]);
+  pathData.push(['Z']);
+
+  const path = new fabric.Path(pathData, {
+    fill: circle.fill,
+    stroke: circle.stroke,
+    strokeWidth: circle.strokeWidth,
+    strokeLineCap: circle.strokeLineCap,
+    strokeLineJoin: circle.strokeLineJoin,
+    opacity: circle.opacity,
+    left: circle.left,
+    top: circle.top,
+    originX: circle.originX,
+    originY: circle.originY,
+    angle: circle.angle,
+    scaleX: circle.scaleX,
+    scaleY: circle.scaleY,
+    _isConvertedPath: true,
+    _originalType: 'circle'
+  });
+
+  path.set({
+    width: r * 2,
+    height: r * 2
+  });
+
+  return path;
+}
+
+/**
+ * Convert a supported shape (rect/circle) to a path and replace it on the canvas
+ * @param {fabric.Object} obj - The shape object to convert
+ * @param {fabric.Canvas} canvas - The canvas instance
+ * @returns {fabric.Path|null} The new path or null on failure
+ */
+export function convertShapeToPath(obj, canvas) {
+  if (!obj) return null;
+  if (obj.type === 'rect') {
+    return convertRectToPath(obj, canvas);
+  }
+  if (obj.type === 'circle') {
+    return convertCircleToPath(obj, canvas);
+  }
+  return null;
+}
+
+/**
  * Enter node editing mode for a polygon/polyline
  * Converts polygon to path for future bezier support
  * @param {fabric.Object} obj - The polygon/polyline to edit
@@ -766,9 +895,33 @@ export function enterNodeEditMode(obj, canvas) {
     targetObj = path;
     
     debugLog('[InkscapeTransformMode] Polygon replaced with path');
+  } else if (obj.type === 'rect') {
+    debugLog('[InkscapeTransformMode] Converting rect to path for node editing');
+    const path = convertRectToPath(obj, canvas);
+    if (!path) {
+      debugLog('[InkscapeTransformMode] Failed to convert rect to path');
+      return;
+    }
+    canvas.remove(obj);
+    canvas.add(path);
+    canvas.setActiveObject(path);
+    targetObj = path;
+    debugLog('[InkscapeTransformMode] Rect replaced with path');
+  } else if (obj.type === 'circle') {
+    debugLog('[InkscapeTransformMode] Converting circle to path for node editing');
+    const path = convertCircleToPath(obj, canvas);
+    if (!path) {
+      debugLog('[InkscapeTransformMode] Failed to convert circle to path');
+      return;
+    }
+    canvas.remove(obj);
+    canvas.add(path);
+    canvas.setActiveObject(path);
+    targetObj = path;
+    debugLog('[InkscapeTransformMode] Circle replaced with path');
   } else if (!obj.path) {
-    // Not a polygon and not a path - can't node edit
-    debugLog('[InkscapeTransformMode] Object has no points or path - cannot enter node edit mode');
+    // Not a polygon, shape, or path - can't node edit
+    debugLog('[InkscapeTransformMode] Object has no points, path or known shape - cannot enter node edit mode');
     return;
   }
   
