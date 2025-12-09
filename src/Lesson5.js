@@ -308,8 +308,9 @@ function toggleBulbs() {
 
 /**
  * Animate zoom out to show complete scene
+ * @param {number} lessonNumber - The lesson number (5 or 6). If 6, skips object position animations.
  */
-function animateZoomOutToScene() {
+function animateZoomOutToScene(lessonNumber = 5) {
   const machine = lesson5State.objects.machine;
   if (!machine) return;
   
@@ -334,6 +335,31 @@ function animateZoomOutToScene() {
   const owl = lesson5State.objects.owl;
   const toolbox = lesson5State.objects.toolbox;
   
+  // If in Lesson 6, position objects immediately at their final positions without animation
+  if (lessonNumber === 6) {
+    if (owl) {
+      owl.left = owlTargetX;
+      owl.top = owlTargetY;
+      owl.setCoords();
+    }
+    if (toolbox) {
+      toolbox.left = toolboxTargetX;
+      toolbox.top = toolboxTargetY;
+      toolbox.setCoords();
+    }
+    // In Lesson 6, don't animate the viewport since startLesson5() has already set it up
+    // Just set the zoom and pan directly to match the final state
+    canvas.setZoom(targetZoom);
+    canvas.setViewportTransform([
+      targetZoom, 0,
+      0, targetZoom,
+      -machineCenterX * targetZoom + canvasWidth / 2,
+      -machineCenterY * targetZoom + canvasHeight / 2
+    ]);
+    canvas.requestRenderAll();
+    return;
+  }
+  
   const owlStartX = owl ? owl.left : owlTargetX;
   const owlStartY = owl ? owl.top : owlTargetY;
   const toolboxStartX = toolbox ? toolbox.left : toolboxTargetX;
@@ -345,19 +371,24 @@ function animateZoomOutToScene() {
     targetY: machineCenterY,
     duration: ANIMATION_DURATION.ZOOM_OUT,
     onProgress: (progress, eased) => {
-      if (owl) {
-        owl.left = owlStartX + (owlTargetX - owlStartX) * eased;
-        owl.top = owlStartY + (owlTargetY - owlStartY) * eased;
-        owl.setCoords();
-      }
-      if (toolbox) {
-        toolbox.left = toolboxStartX + (toolboxTargetX - toolboxStartX) * eased;
-        toolbox.top = toolboxStartY + (toolboxTargetY - toolboxStartY) * eased;
-        toolbox.setCoords();
+      // Only animate object positions in Lesson 5, not in Lesson 6
+      if (lessonNumber === 5) {
+        if (owl) {
+          owl.left = owlStartX + (owlTargetX - owlStartX) * eased;
+          owl.top = owlStartY + (owlTargetY - owlStartY) * eased;
+          owl.setCoords();
+        }
+        if (toolbox) {
+          toolbox.left = toolboxStartX + (toolboxTargetX - toolboxStartX) * eased;
+          toolbox.top = toolboxStartY + (toolboxTargetY - toolboxStartY) * eased;
+          toolbox.setCoords();
+        }
       }
     },
     onComplete: () => {
-      showCompletionMessage();
+      if (lessonNumber === 5) {
+        showCompletionMessage();
+      }
     }
   });
 }
@@ -703,6 +734,41 @@ function cleanup() {
   canvas.requestRenderAll();
   
   console.log('[Lesson5] Cleanup complete');
+}
+
+/**
+ * Enter end state: toggle bulbs on, start gear rotation, owl wiggle, and zoom out
+ * @param {number} lessonNumber - The lesson number (5 or 6). Determines animation behavior.
+ * Used by Lesson 6 to show the end state of Lesson 5 as a backdrop
+ */
+export function enterEndState(lessonNumber = 5) {
+  // Toggle bulbs on
+  toggleBulbs();
+  
+  // Start gear rotation
+  if (lesson5State.gearObjects.length > 0) {
+    lesson5State.animations.gears = animationController.startRotationAnimation(
+      lesson5State.gearObjects, 
+      'gear-rotation'
+    );
+  }
+  
+  // Start owl wiggle
+  if (lesson5State.objects.owl) {
+    lesson5State.animations.owlWiggle = animationController.startWiggleAnimation(
+      lesson5State.objects.owl,
+      'owl-wiggle'
+    );
+  }
+  
+  // Bring owl and toolbox to front
+  if (lesson5State.objects.owl) canvas.bringToFront(lesson5State.objects.owl);
+  if (lesson5State.objects.toolbox) canvas.bringToFront(lesson5State.objects.toolbox);
+  
+  // Zoom out to show scene (pass lessonNumber to control animation behavior)
+  animateZoomOutToScene(lessonNumber);
+  
+  console.log('[Lesson5] End state entered (lesson ' + lessonNumber + ')');
 }
 
 /**

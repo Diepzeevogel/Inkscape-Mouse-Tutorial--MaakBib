@@ -658,8 +658,8 @@ function handleMouseDblClick(e, canvas) {
   } else if (target.path && Array.isArray(target.path)) {
     debugLog('[InkscapeTransformMode] Double-click on path - entering node edit mode');
     enterNodeEditMode(target, canvas);
-  } else if (target.type === 'rect' || target.type === 'circle') {
-    debugLog('[InkscapeTransformMode] Double-click on rect/circle - entering node edit mode (will convert to path)');
+  } else if (target.type === 'rect' || target.type === 'circle' || target.type === 'ellipse') {
+    debugLog('[InkscapeTransformMode] Double-click on rect/circle/ellipse - entering node edit mode (will convert to path)');
     enterNodeEditMode(target, canvas);
   }
 }
@@ -772,10 +772,9 @@ function convertRectToPath(rect, canvas) {
     strokeLineCap: rect.strokeLineCap,
     strokeLineJoin: rect.strokeLineJoin,
     opacity: rect.opacity,
-    left: rect.left,
-    top: rect.top,
-    originX: rect.originX,
-    originY: rect.originY,
+    // We'll set left/top to the object's center so the visual position remains identical
+    originX: 'center',
+    originY: 'center',
     angle: rect.angle,
     scaleX: rect.scaleX,
     scaleY: rect.scaleY,
@@ -789,59 +788,85 @@ function convertRectToPath(rect, canvas) {
     height: h
   });
 
+  // Compute the visual center of the original rect (handles origin differences and transforms)
+  if (typeof rect.getCenterPoint === 'function') {
+    const center = rect.getCenterPoint();
+    path.set({ left: center.x, top: center.y });
+  } else {
+    // Fallback: compute from left/top + width/height assuming origin is top-left
+    path.set({ left: (rect.left || 0) + w / 2, top: (rect.top || 0) + h / 2 });
+  }
+
+  // Ensure transform and coords are applied
+  path.setCoords();
+
   return path;
 }
 
 /**
- * Convert a Circle object to a Path using 4 cubic bezier segments
- * @param {fabric.Circle} circle - The circle to convert
+ * Convert a Circle/Ellipse object to a Path using 4 cubic bezier segments
+ * @param {fabric.Circle|fabric.Ellipse} ellipse - The ellipse/circle to convert
  * @param {fabric.Canvas} canvas - The canvas instance
  * @returns {fabric.Path} The converted path object
  */
-function convertCircleToPath(circle, canvas) {
-  if (!circle) return null;
+function convertEllipseToPath(ellipse, canvas) {
+  if (!ellipse) return null;
 
-  const r = circle.radius || ((circle.width || 0) / 2);
+  // Determine radii for ellipse or circle
+  const rx = ellipse.rx || ellipse.radius || ((ellipse.width || 0) / 2);
+  const ry = ellipse.ry || ellipse.radius || ((ellipse.height || 0) / 2) || rx;
   const kappa = 0.5522847498307936; // approximation for a circle
-  const ox = r * kappa;
+
+  // Control offsets
+  const ox = rx * kappa;
+  const oy = ry * kappa;
 
   // Build path centered at 0,0
-  // Start at (r, 0)
   const pathData = [];
-  pathData.push(['M', r, 0]);
-
-  // Quadrant 1: to (0, r)
-  pathData.push(['C', r, ox, ox, r, 0, r]);
-  // Quadrant 2: to (-r, 0)
-  pathData.push(['C', -ox, r, -r, ox, -r, 0]);
-  // Quadrant 3: to (0, -r)
-  pathData.push(['C', -r, -ox, -ox, -r, 0, -r]);
-  // Quadrant 4: back to (r, 0)
-  pathData.push(['C', ox, -r, r, -ox, r, 0]);
+  // Start at (rx, 0)
+  pathData.push(['M', rx, 0]);
+  // Quadrant 1 to (0, ry)
+  pathData.push(['C', rx, oy, ox, ry, 0, ry]);
+  // Quadrant 2 to (-rx, 0)
+  pathData.push(['C', -ox, ry, -rx, oy, -rx, 0]);
+  // Quadrant 3 to (0, -ry)
+  pathData.push(['C', -rx, -oy, -ox, -ry, 0, -ry]);
+  // Quadrant 4 back to (rx, 0)
+  pathData.push(['C', ox, -ry, rx, -oy, rx, 0]);
   pathData.push(['Z']);
 
   const path = new fabric.Path(pathData, {
-    fill: circle.fill,
-    stroke: circle.stroke,
-    strokeWidth: circle.strokeWidth,
-    strokeLineCap: circle.strokeLineCap,
-    strokeLineJoin: circle.strokeLineJoin,
-    opacity: circle.opacity,
-    left: circle.left,
-    top: circle.top,
-    originX: circle.originX,
-    originY: circle.originY,
-    angle: circle.angle,
-    scaleX: circle.scaleX,
-    scaleY: circle.scaleY,
+    fill: ellipse.fill,
+    stroke: ellipse.stroke,
+    strokeWidth: ellipse.strokeWidth,
+    strokeLineCap: ellipse.strokeLineCap,
+    strokeLineJoin: ellipse.strokeLineJoin,
+    opacity: ellipse.opacity,
+    left: ellipse.left,
+    top: ellipse.top,
+    originX: 'center',
+    originY: 'center',
+    angle: ellipse.angle,
+    scaleX: ellipse.scaleX,
+    scaleY: ellipse.scaleY,
     _isConvertedPath: true,
-    _originalType: 'circle'
+    _originalType: ellipse.type || 'ellipse'
   });
 
   path.set({
-    width: r * 2,
-    height: r * 2
+    width: rx * 2,
+    height: ry * 2
   });
+
+  // Ensure transform and coords are applied
+  // Compute and set the visual center like for rects to avoid jumping when replacing
+  if (typeof ellipse.getCenterPoint === 'function') {
+    const center = ellipse.getCenterPoint();
+    path.set({ left: center.x, top: center.y });
+  } else {
+    path.set({ left: ellipse.left, top: ellipse.top });
+  }
+  path.setCoords();
 
   return path;
 }
@@ -857,8 +882,8 @@ export function convertShapeToPath(obj, canvas) {
   if (obj.type === 'rect') {
     return convertRectToPath(obj, canvas);
   }
-  if (obj.type === 'circle') {
-    return convertCircleToPath(obj, canvas);
+  if (obj.type === 'circle' || obj.type === 'ellipse') {
+    return convertEllipseToPath(obj, canvas);
   }
   return null;
 }
@@ -907,9 +932,9 @@ export function enterNodeEditMode(obj, canvas) {
     canvas.setActiveObject(path);
     targetObj = path;
     debugLog('[InkscapeTransformMode] Rect replaced with path');
-  } else if (obj.type === 'circle') {
-    debugLog('[InkscapeTransformMode] Converting circle to path for node editing');
-    const path = convertCircleToPath(obj, canvas);
+  } else if (obj.type === 'circle' || obj.type === 'ellipse') {
+    debugLog('[InkscapeTransformMode] Converting circle/ellipse to path for node editing');
+    const path = convertEllipseToPath(obj, canvas);
     if (!path) {
       debugLog('[InkscapeTransformMode] Failed to convert circle to path');
       return;
