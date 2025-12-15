@@ -410,6 +410,20 @@ if (penTool) {
   });
 }
 
+// Text tool handler
+const textTool = document.getElementById('tool-text');
+if (textTool) {
+  textTool.addEventListener('click', () => {
+    // Deactivate other tools visually
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    textTool.classList.add('active');
+
+    // Ensure other interactive controllers are disabled; editing will occur on selection
+    shapeDrawingController.disable();
+    penToolController.disable();
+  });
+}
+
 // When select tool is clicked, disable shape drawing, pen tool, and exit node edit mode
 if (selectTool) {
   const originalSelectHandler = selectTool.onclick;

@@ -11,7 +11,7 @@ class UndoRedoController {
     this.undoStack = [];
     this.redoStack = [];
     this.keydownHandler = null;
-    this.isEnabled = false;
+    this.isEnabled = true;
     this.maxStackSize = 50; // Maximum number of undo states to keep
     this.isRecording = true; // Flag to prevent recording during undo/redo
     this.saveTimeout = null; // Debounce timer for saving state

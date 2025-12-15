@@ -150,6 +150,9 @@ class ShapeDrawingController {
 
     this.dimensionControls = container;
 
+    // Nudge the controls slightly left to improve alignment with the toolbar
+    container.style.marginLeft = '-500px';
+
     // Attach input event listeners
     this.attachDimensionListeners();
   }

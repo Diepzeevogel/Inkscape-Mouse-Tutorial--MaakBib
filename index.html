@@ -101,6 +101,37 @@
       })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/fabric@5.2.4/dist/fabric.min.js"></script>
+    <script>
+      // Normalize invalid Canvas textBaseline values that some libraries may set
+      // (e.g. 'alphabetical' -> 'alphabetic') to avoid repeated console warnings.
+      (function() {
+        try {
+          const proto = CanvasRenderingContext2D && CanvasRenderingContext2D.prototype;
+          if (!proto) return;
+
+          const originalDesc = Object.getOwnPropertyDescriptor(proto, 'textBaseline');
+          const originalGetter = originalDesc && originalDesc.get;
+          const originalSetter = originalDesc && originalDesc.set;
+
+          Object.defineProperty(proto, 'textBaseline', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              if (originalGetter) return originalGetter.call(this);
+              return this._patchedTextBaseline || 'alphabetic';
+            },
+            set: function(v) {
+              const mapped = (v === 'alphabetical') ? 'alphabetic' : v;
+              if (originalSetter) return originalSetter.call(this, mapped);
+              this._patchedTextBaseline = mapped;
+            }
+          });
+        } catch (e) {
+          // If patching fails, silently ignore — it's non-critical
+          console.warn('[index.html] Failed to patch textBaseline mapping:', e);
+        }
+      })();
+    </script>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>

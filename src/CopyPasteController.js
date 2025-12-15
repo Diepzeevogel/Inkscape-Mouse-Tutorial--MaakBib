@@ -215,14 +215,31 @@ class CopyPasteController {
       }
 
       // Initialize _lastPos for linked movement if needed
-      clonedObj._lastPos = { 
-        left: clonedObj.left, 
-        top: clonedObj.top 
+      clonedObj._lastPos = {
+        left: clonedObj.left,
+        top: clonedObj.top
       };
       
       // Update coordinates
       clonedObj.setCoords();
       
+      // Ensure the pasted copy is movable/selectable even if the original was locked.
+      try {
+        clonedObj.set({ lockMovementX: false, lockMovementY: false, selectable: true, evented: true });
+        if (clonedObj._objects && Array.isArray(clonedObj._objects)) {
+          clonedObj._objects.forEach(o => o.set({ lockMovementX: false, lockMovementY: false, selectable: true, evented: true }));
+        }
+      } catch (err) {
+        console.warn('[CopyPaste] Could not unlock pasted object:', err);
+      }
+
+      // Mark this object as a pasted copy so lesson logic can treat it specially
+      try {
+        clonedObj._isPasted = true;
+      } catch (err) {
+        // ignore
+      }
+
       // Select the newly pasted object
       canvas.setActiveObject(clonedObj);
       

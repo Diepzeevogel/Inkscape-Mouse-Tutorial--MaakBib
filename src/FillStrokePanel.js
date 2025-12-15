@@ -564,4 +564,76 @@ export class FillStrokePanel {
     this.panelElement = null;
     this.activeObject = null;
   }
+
+  /**
+   * Programmatically set the fill color (accepts null to mean 'none')
+   * @param {string|null|{r:number,g:number,b:number}} value
+   */
+  setFillColor(value) {
+    this.activeTab = 'fill';
+    this.isStrokeMode = false;
+    // Ensure UI tabs/panes reflect the programmatic change
+    if (this.panelElement) {
+      const tabs = this.panelElement.querySelectorAll('.panel-tab');
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === this.activeTab));
+      this.togglePanes();
+      this.updatePanelForCurrentObject();
+    }
+    if (value === null) {
+      this.setPaintModeUI('none');
+      if (this.activeObject) {
+        this.activeObject.set({ fill: null });
+        this.canvas.renderAll();
+        this.canvas.fire('object:modified', { target: this.activeObject });
+      }
+      return;
+    }
+
+    const rgb = (typeof value === 'string') ? this.colorToRgb(value) : value;
+    if (rgb) {
+      this.setColor(rgb);
+      this.setPaintModeUI('solid');
+      if (this.activeObject) {
+        this.applyColorToObject();
+      } else {
+        this.lastFillColor = { ...rgb };
+      }
+    }
+  }
+
+  /**
+   * Programmatically set the stroke color (accepts null to mean 'none')
+   * @param {string|null|{r:number,g:number,b:number}} value
+   */
+  setStrokeColor(value) {
+    this.activeTab = 'stroke';
+    this.isStrokeMode = true;
+    // Ensure UI tabs/panes reflect the programmatic change
+    if (this.panelElement) {
+      const tabs = this.panelElement.querySelectorAll('.panel-tab');
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === this.activeTab));
+      this.togglePanes();
+      this.updatePanelForCurrentObject();
+    }
+    if (value === null) {
+      this.setPaintModeUI('none');
+      if (this.activeObject) {
+        this.activeObject.set({ stroke: null });
+        this.canvas.renderAll();
+        this.canvas.fire('object:modified', { target: this.activeObject });
+      }
+      return;
+    }
+
+    const rgb = (typeof value === 'string') ? this.colorToRgb(value) : value;
+    if (rgb) {
+      this.setColor(rgb);
+      this.setPaintModeUI('solid');
+      if (this.activeObject) {
+        this.applyColorToObject();
+      } else {
+        this.lastStrokeColor = { ...rgb };
+      }
+    }
+  }
 }

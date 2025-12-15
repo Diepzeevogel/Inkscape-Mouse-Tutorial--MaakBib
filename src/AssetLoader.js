@@ -129,7 +129,9 @@ export class AssetLoader {
       if (fragment) {
         groups[id] = await this.makeFabricGroupFromFragment(fragment);
       } else {
-        console.warn(`[AssetLoader] Fragment not found for ID: ${id}`);
+        // Not all SVGs contain every requested fragment; this is informational,
+        // so log at info level with the source URL to reduce console noise.
+        console.info(`[AssetLoader] Fragment not found for ID: ${id} in ${url}`);
         groups[id] = null;
       }
     }
