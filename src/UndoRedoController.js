@@ -1,6 +1,6 @@
 /**
  * UndoRedoController
- * Handles Ctrl+Z (undo) and Ctrl+Y (redo) functionality for Fabric.js canvas
+ * Handles Ctrl+Z (undo) and Ctrl+Shift+Z (redo) functionality for Fabric.js canvas
  * Maintains a history stack of canvas states
  */
 
@@ -11,11 +11,14 @@ class UndoRedoController {
     this.undoStack = [];
     this.redoStack = [];
     this.keydownHandler = null;
-    this.isEnabled = true;
+    // Start disabled; enable explicitly on app init so listeners are registered once
+    this.isEnabled = false;
     this.maxStackSize = 50; // Maximum number of undo states to keep
     this.isRecording = true; // Flag to prevent recording during undo/redo
     this.saveTimeout = null; // Debounce timer for saving state
     this.debounceDelay = 500; // milliseconds to wait before saving
+    // bound handler reference so we can remove listeners precisely
+    this._boundCanvasModified = this.onCanvasModified.bind(this);
   }
 
   /**
@@ -27,9 +30,14 @@ class UndoRedoController {
       console.log('[UndoRedo] Already enabled');
       return;
     }
-
     this.keydownHandler = this.handleKeydown.bind(this);
-    document.addEventListener('keydown', this.keydownHandler);
+    // Attach on window in capture phase so undo/redo receives key events before other handlers
+    try {
+      window.addEventListener('keydown', this.keydownHandler, true);
+    } catch (e) {
+      // Fallback to document if window not available in some environments
+      document.addEventListener('keydown', this.keydownHandler);
+    }
     
     // Track canvas modifications
     this.setupCanvasListeners();
@@ -38,7 +46,7 @@ class UndoRedoController {
     this.saveState();
     
     this.isEnabled = true;
-    console.log('[UndoRedo] Enabled (Ctrl+Z / Ctrl+Y)');
+    console.log('[UndoRedo] Enabled (Ctrl+Z / Ctrl+Shift+Z)');
   }
 
   /**
@@ -49,7 +57,8 @@ class UndoRedoController {
     if (!this.isEnabled) return;
 
     if (this.keydownHandler) {
-      document.removeEventListener('keydown', this.keydownHandler);
+      try { window.removeEventListener('keydown', this.keydownHandler, true); } catch (e) { /* ignore */ }
+      try { document.removeEventListener('keydown', this.keydownHandler); } catch (e) { /* ignore */ }
       this.keydownHandler = null;
     }
     
@@ -65,26 +74,39 @@ class UndoRedoController {
    */
   setupCanvasListeners() {
     // Track object modifications (includes color, size, rotation changes)
-    canvas.on('object:modified', this.onCanvasModified.bind(this));
-    canvas.on('object:added', this.onCanvasModified.bind(this));
-    canvas.on('object:removed', this.onCanvasModified.bind(this));
-    
+    canvas.on('object:modified', this._boundCanvasModified);
+    canvas.on('object:added', this._boundCanvasModified);
+    canvas.on('object:removed', this._boundCanvasModified);
     // Track property changes that might not trigger object:modified
-    canvas.on('object:scaling', this.onCanvasModified.bind(this));
-    canvas.on('object:rotating', this.onCanvasModified.bind(this));
-    canvas.on('object:skewing', this.onCanvasModified.bind(this));
+    canvas.on('object:scaling', this._boundCanvasModified);
+    canvas.on('object:rotating', this._boundCanvasModified);
+    canvas.on('object:skewing', this._boundCanvasModified);
   }
 
   /**
    * Remove canvas event listeners
    */
   removeCanvasListeners() {
-    canvas.off('object:modified');
-    canvas.off('object:added');
-    canvas.off('object:removed');
-    canvas.off('object:scaling');
-    canvas.off('object:rotating');
-    canvas.off('object:skewing');
+    try {
+      if (this._boundCanvasModified) {
+        canvas.off('object:modified', this._boundCanvasModified);
+        canvas.off('object:added', this._boundCanvasModified);
+        canvas.off('object:removed', this._boundCanvasModified);
+        canvas.off('object:scaling', this._boundCanvasModified);
+        canvas.off('object:rotating', this._boundCanvasModified);
+        canvas.off('object:skewing', this._boundCanvasModified);
+      }
+    } catch (e) {
+      // fallback: remove without handler if precise removal fails
+      try {
+        canvas.off('object:modified');
+        canvas.off('object:added');
+        canvas.off('object:removed');
+        canvas.off('object:scaling');
+        canvas.off('object:rotating');
+        canvas.off('object:skewing');
+      } catch (ee) { /* ignore */ }
+    }
   }
 
   /**
@@ -108,13 +130,19 @@ class UndoRedoController {
    * Handle keyboard events
    */
   handleKeydown(e) {
+    // Ignore key events from inputs/textareas or contenteditable elements
+    try {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    } catch (err) { /* ignore */ }
+
     // Check for Ctrl+Z or Cmd+Z (Mac)
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+    if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'z' && !e.shiftKey) {
       e.preventDefault();
       this.undo();
     }
-    // Check for Ctrl+Y or Cmd+Shift+Z (Mac)
-    else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+    // Check for Ctrl+Shift+Z or Cmd+Shift+Z for redo (do NOT accept Ctrl+Y)
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       this.redo();
     }
@@ -138,7 +166,13 @@ class UndoRedoController {
       '_lastPos'
     ]);
 
-    this.undoStack.push(JSON.stringify(json));
+    // Wrap the canvas JSON together with the current URL hash so undo/redo can restore lesson navigation
+    const wrapper = {
+      canvas: json,
+      hash: (typeof location !== 'undefined' && location.hash) ? location.hash : ''
+    };
+
+    this.undoStack.push(JSON.stringify(wrapper));
     
     // Limit stack size
     if (this.undoStack.length > this.maxStackSize) {
@@ -210,12 +244,24 @@ class UndoRedoController {
    * Load a canvas state from JSON
    */
   loadState(stateJson) {
-    const state = JSON.parse(stateJson);
-    
+    const parsed = JSON.parse(stateJson);
+    // Support legacy format (raw canvas JSON) and new wrapper format { canvas, hash }
+    const canvasState = (parsed && parsed.canvas) ? parsed.canvas : parsed;
+    const savedHash = (parsed && typeof parsed.hash !== 'undefined') ? parsed.hash : null;
+
     canvas.clear();
-    canvas.loadFromJSON(state, () => {
+    canvas.loadFromJSON(canvasState, () => {
       canvas.requestRenderAll();
-      
+
+      // Restore URL hash if present in the saved state. Use replaceState to avoid adding extra history
+      try {
+        if (savedHash !== null && savedHash !== undefined) {
+          history.replaceState(null, '', savedHash);
+          // Notify listeners that the hash changed so lessons update accordingly
+          try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+
       // Resume recording after a short delay
       setTimeout(() => {
         this.isRecording = true;

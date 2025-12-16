@@ -1,4 +1,5 @@
 import { initCanvas, centerCanvas, canvas } from './canvas.js';
+import { undoRedoController } from './UndoRedoController.js';
 import { installWelcomeOverlay, createSelectOverlayButton } from './overlay.js';
 import { startTutorial, startTutorialDirect, startLesson2, startLesson3, startLesson4, startLesson5 } from './tutorial.js';
 import { startLesson6, cleanupLesson6 } from './Lesson6.js';
@@ -118,6 +119,12 @@ if (!isDesktopWithMouse()) {
 // Initialize canvas
 initCanvas('c');
 centerCanvas();
+
+// Enable global undo/redo (Ctrl+Z / Ctrl+Shift+Z)
+try {
+  // Global undo/redo intentionally disabled due to lesson state restoration issues.
+  // To re-enable, call `undoRedoController.enable()` here.
+} catch (e) { console.warn('[Main] Could not enable undo/redo controller:', e); }
 
 // Install overlay and hook select tool
 const welcomeOverlay = installWelcomeOverlay();
@@ -362,7 +369,17 @@ positionLessonButtons();
 window.addEventListener('resize', positionLessonButtons);
 window.addEventListener('hashchange', () => { updateLessonButtons(); positionLessonButtons(); });
 // Handle user-initiated back/forward navigation and start lessons accordingly.
-window.addEventListener('hashchange', async () => {
+window.addEventListener('hashchange', async (ev) => {
+  // Ignore synthetic (programmatic) hashchange events dispatched via dispatchEvent.
+  // Those have `isTrusted === false`. Only respond to user-initiated navigation
+  // (back/forward) or real browser events.
+  if (ev && ev.isTrusted === false) {
+    // Still update UI-only pieces
+    updateLessonButtons();
+    positionLessonButtons();
+    return;
+  }
+
   // Prevent re-entrancy when starting lessons triggers additional hashchange events
   if (window._handlingHashChange) return;
   window._handlingHashChange = true;

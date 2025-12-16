@@ -16,6 +16,9 @@ export class FillStrokePanel {
     this.activeObject = null;
     this.activeTab = 'fill'; // 'fill' | 'stroke' | 'stroke-style'
     this.isStrokeMode = false; // false = fill mode, true = stroke mode (for color tabs)
+    // When false, calling `show()` will not add the `active` class.
+    // This allows lessons to keep the panel in the DOM but disabled until needed.
+    this.enabled = false;
     
     // Color state
     this.currentColor = { r: 0, g: 0, b: 0 };
@@ -31,6 +34,19 @@ export class FillStrokePanel {
    * @returns {HTMLElement} The panel element
    */
   create() {
+    // If a panel already exists in the DOM, reuse it to avoid duplicates
+    const existing = document.querySelector('.fill-stroke-panel');
+    if (existing) {
+      this.panelElement = existing;
+      // If already initialized, just reuse the existing element
+      if (existing.dataset && existing.dataset.fspInitialized === '1') return existing;
+      // Mark initialized so we don't repeat setup
+      try { existing.dataset.fspInitialized = '1'; } catch (e) {}
+      this.populateSwatches();
+      this.attachEventListeners();
+      return this.panelElement;
+    }
+
     const panel = document.createElement('div');
     panel.className = 'fill-stroke-panel';
     panel.innerHTML = `
@@ -118,6 +134,9 @@ export class FillStrokePanel {
     this.panelElement = panel;
     this.populateSwatches();
     this.attachEventListeners();
+    try { panel.dataset.fspInitialized = '1'; } catch (e) {}
+    // Append to body now so panel exists in DOM at all times
+    try { document.body.appendChild(panel); } catch (e) { /* ignore */ }
     return panel;
   }
 
@@ -145,6 +164,12 @@ export class FillStrokePanel {
    * Attach event listeners to panel controls
    */
   attachEventListeners() {
+    if (!this.panelElement) return;
+    // Avoid attaching listeners multiple times
+    try {
+      if (this.panelElement.dataset && this.panelElement.dataset.listenersAttached === '1') return;
+    } catch (e) {}
+
     // Tab switching
     const tabs = this.panelElement.querySelectorAll('.panel-tab');
     tabs.forEach(tab => {
@@ -246,16 +271,20 @@ export class FillStrokePanel {
       widthInput.value = 0.3;
       applyWidth(0.3);
     });
+    try { this.panelElement.dataset.listenersAttached = '1'; } catch (e) {}
   }
 
   /**
    * Show the panel with animation
    */
   show() {
+    if (!this.enabled) return; // Respect disabled state
     if (this.panelElement) {
       // Use requestAnimationFrame to ensure CSS transition works
       requestAnimationFrame(() => {
-        this.panelElement.classList.add('active');
+        try {
+          if (this.panelElement) this.panelElement.classList.add('active');
+        } catch (e) { /* ignore if element was removed */ }
       });
     }
   }
@@ -267,6 +296,21 @@ export class FillStrokePanel {
     if (this.panelElement) {
       this.panelElement.classList.remove('active');
     }
+  }
+
+  /**
+   * Enable the panel so `show()` can make it visible.
+   */
+  enable() {
+    this.enabled = true;
+  }
+
+  /**
+   * Disable the panel and ensure it is hidden.
+   */
+  disable() {
+    this.enabled = false;
+    try { this.hide(); } catch (e) { /* ignore */ }
   }
 
   /**
@@ -558,9 +602,14 @@ export class FillStrokePanel {
    * Clean up the panel
    */
   destroy() {
-    if (this.panelElement && this.panelElement.parentNode) {
-      this.panelElement.parentNode.removeChild(this.panelElement);
-    }
+    try {
+      if (this.panelElement && this.panelElement.parentNode) {
+        // Remove element from DOM and clear any attached dataset flags
+        try { this.panelElement.dataset.listenersAttached = '0'; } catch (e) {}
+        try { this.panelElement.dataset.fspInitialized = '0'; } catch (e) {}
+        this.panelElement.parentNode.removeChild(this.panelElement);
+      }
+    } catch (e) { /* ignore */ }
     this.panelElement = null;
     this.activeObject = null;
   }

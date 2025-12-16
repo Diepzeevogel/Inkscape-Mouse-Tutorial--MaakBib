@@ -238,11 +238,12 @@ function setupScrewdriver(handle, top) {
 function setupFillStrokePanel() {
   const panel = new FillStrokePanel(canvas);
   const panelElement = panel.create();
-  document.body.appendChild(panelElement);
-  
+  // create() will append if needed; ensure we don't append duplicates
+  try {
+    if (!document.body.contains(panelElement)) document.body.appendChild(panelElement);
+  } catch (e) { /* ignore */ }
   // Hide the panel initially - no selections yet
   panel.hide();
-  
   return panel;
 }
 
@@ -1088,9 +1089,10 @@ export async function startLesson6() {
     
     // Setup Fill & Stroke panel for Lesson 6 interactions
     lesson6State.fillStrokePanel = setupFillStrokePanel();
-    
+    // Enable the panel for this lesson (it remains hidden until explicitly shown)
+    try { lesson6State.fillStrokePanel.enable(); } catch (e) { /* ignore */ }
     // Hide panel initially until user selects something
-    lesson6State.fillStrokePanel.hide();
+    try { lesson6State.fillStrokePanel.hide(); } catch (e) { /* ignore */ }
 
     // Create animation controller for this lesson and store on state
     lesson6State.animationController = new AnimationController(canvas);
@@ -1637,9 +1639,9 @@ export async function startLesson6() {
       const animationController = lesson6State.animationController;
       
       // Wire up event: when ink is deleted, show and animate the hole
-      canvas.on('object:removed', (e) => {
-        const removedObj = e.target;
-        if (removedObj === ink) {
+        const inkRemovedHandler = (e) => {
+          const removedObj = e.target;
+          if (removedObj === ink) {
           // Show the hole with styling similar to lesson 1 helmet target
           // Apply dashed grey stroke style matching helmet/wrench outline targets
           hole.set({
@@ -1776,8 +1778,12 @@ export async function startLesson6() {
           };
           
           canvas.on('object:modified', handleCircleModified);
+          
+          // Close inkRemovedHandler and attach it now that the handler body has been defined
         }
-      });
+      };
+      lesson6State.inkRemovedHandler = inkRemovedHandler;
+      canvas.on('object:removed', inkRemovedHandler);
     }
 
     canvas.requestRenderAll();
@@ -1794,6 +1800,21 @@ export async function startLesson6() {
  * Clean up Lesson 4
  */
 export function cleanupLesson6() {
+  // Always attempt to remove Fill & Stroke panel from DOM and clear controller refs
+  try {
+    if (lesson6State.fillStrokePanel) {
+      try { lesson6State.fillStrokePanel.destroy(); } catch (e) { /* ignore */ }
+      lesson6State.fillStrokePanel = null;
+    }
+    try {
+      document.querySelectorAll('.fill-stroke-panel').forEach(el => {
+        try { if (el.parentNode) el.parentNode.removeChild(el); } catch (e) {}
+      });
+    } catch (e) { /* ignore */ }
+    try { penToolController.setFillStrokePanel(null); } catch (e) { /* ignore */ }
+    try { shapeDrawingController.setFillStrokePanel(null); } catch (e) { /* ignore */ }
+  } catch (e) { /* ignore */ }
+
   if (!lesson6State.isActive) return;
 
   console.log('[Lesson6] Cleaning up...');
@@ -1802,14 +1823,8 @@ export function cleanupLesson6() {
   if (lesson6State.objects.handle) canvas.remove(lesson6State.objects.handle);
   if (lesson6State.objects.top) canvas.remove(lesson6State.objects.top);
 
-  // Remove panel
-  if (lesson6State.fillStrokePanel) {
-    lesson6State.fillStrokePanel.destroy();
-  }
-
-  // Disable copy-paste and undo/redo
+  // Disable copy-paste for this lesson; keep global undo/redo enabled
   copyPasteController.disable();
-  undoRedoController.disable();
 
   // Disable shape tools
   const rectTool = document.getElementById('tool-rect');
@@ -1851,6 +1866,7 @@ export function cleanupLesson6() {
     if (lesson6State.penAddedHandler) { canvas.off('object:added', lesson6State.penAddedHandler); lesson6State.penAddedHandler = null; }
     if (lesson6State.pasteAddedHandler) { canvas.off('object:added', lesson6State.pasteAddedHandler); lesson6State.pasteAddedHandler = null; }
     if (lesson6State.preserveRemovalHandler) { canvas.off('object:removed', lesson6State.preserveRemovalHandler); lesson6State.preserveRemovalHandler = null; }
+    if (lesson6State.inkRemovedHandler) { canvas.off('object:removed', lesson6State.inkRemovedHandler); lesson6State.inkRemovedHandler = null; }
     if (lesson6State.moveListener) { canvas.off('object:moving', lesson6State.moveListener); lesson6State.moveListener = null; }
   } catch (e) {
     console.warn('[Lesson6] Error removing lesson-specific canvas handlers:', e);
