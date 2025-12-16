@@ -134,22 +134,9 @@ class UndoRedoController {
    */
   saveState() {
     if (!this.isRecording) return;
-    // Temporarily materialize LastPos into object properties so it can be serialized
-    const objsForTemp = [];
-    try {
-      canvas.getObjects().forEach(o => {
-        try {
-          if (typeof LastPos !== 'undefined' && LastPos && LastPos.has && LastPos.has(o)) {
-            const val = LastPos.get(o);
-            if (val !== undefined) {
-              o._lastPos = val;
-              objsForTemp.push(o);
-            }
-          }
-        } catch (e) { /* ignore */ }
-      });
-    } catch (e) { /* ignore */ }
-
+    // Use a transient approach: generate canvas JSON, then inject _lastPos
+    // into the serialized object entries without mutating fabric objects.
+    const canvasObjects = canvas.getObjects().slice();
     const json = canvas.toJSON([
       'perPixelTargetFind',
       'targetFindTolerance',
@@ -159,12 +146,25 @@ class UndoRedoController {
       'selectable',
       'evented',
       'hoverCursor',
-      '_lastPos'
+      // Note: we don't include '_lastPos' here on purpose; we'll inject below
     ]);
 
-    // Cleanup temporary _lastPos properties
+    // Inject _lastPos into the serialized JSON objects by aligning
+    // with canvas.getObjects() order (fabric preserves object order).
     try {
-      objsForTemp.forEach(o => { try { delete o._lastPos; } catch (e) {} });
+      if (json && Array.isArray(json.objects)) {
+        json.objects.forEach((objJson, idx) => {
+          const o = canvasObjects[idx];
+          try {
+            if (o && typeof LastPos !== 'undefined' && LastPos && LastPos.has && LastPos.has(o)) {
+              const val = LastPos.get(o);
+              if (typeof val !== 'undefined') {
+                objJson._lastPos = val;
+              }
+            }
+          } catch (e) { /* ignore */ }
+        });
+      }
     } catch (e) { /* ignore */ }
 
     // Wrap the canvas JSON together with the current URL hash so undo/redo can restore lesson navigation
