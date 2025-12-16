@@ -207,6 +207,8 @@ export async function startTutorialOriginal() {
         if (panel) {
           let btn = document.getElementById('next-tutorial-btn');
           if (!btn) {
+            // Replace aside panel text with a short completion message
+            panel.innerHTML = '<p>Goed gedaan, je bent klaar voor de volgende les</p>';
             btn = document.createElement('button');
             btn.id = 'next-tutorial-btn';
             btn.style.display = 'block';
@@ -445,6 +447,8 @@ export async function startSecondTutorialOriginal() {
           if (!panel) return;
           let btn = document.getElementById('next-tutorial-btn-2');
           if (!btn) {
+            // Replace aside panel text with a short completion message
+            panel.innerHTML = '<p>Goed gedaan, je bent klaar voor de volgende les</p>';
             btn = document.createElement('button');
             btn.id = 'next-tutorial-btn-2';
             btn.style.display = 'block';

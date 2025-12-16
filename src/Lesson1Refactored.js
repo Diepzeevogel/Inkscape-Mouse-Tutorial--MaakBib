@@ -17,6 +17,7 @@ import {
   INTERACTION_THRESHOLD,
   STYLE 
 } from './constants.js';
+import { markLessonCompleted } from './utils.js';
 
 // Tutorial state container (will be further improved in Phase 2.3)
 class Lesson1State {
@@ -239,6 +240,7 @@ function handleSuccess() {
   canvas.requestRenderAll();
   
   // Show next tutorial button
+  try { markLessonCompleted(1); } catch (e) {}
   showNextButton();
   
   console.log('[Lesson1] Success! Helmet placed on owl.');
@@ -253,6 +255,9 @@ function showNextButton() {
 
   let button = document.getElementById('next-tutorial-btn');
   if (button) return; // Already exists
+
+  // Replace aside panel text with a short completion message
+  panel.innerHTML = '<p>Goed gedaan, je bent klaar voor de volgende les</p>';
 
   button = document.createElement('button');
   button.id = 'next-tutorial-btn';

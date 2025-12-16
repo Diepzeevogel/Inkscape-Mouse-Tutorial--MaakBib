@@ -2,6 +2,7 @@ import { initCanvas, centerCanvas, canvas } from './canvas.js';
 import { installWelcomeOverlay, createSelectOverlayButton } from './overlay.js';
 import { startTutorial, startTutorialDirect, startLesson2, startLesson3, startLesson4, startLesson5 } from './tutorial.js';
 import { startLesson6, cleanupLesson6 } from './Lesson6.js';
+import { getCompletedLessons, markLessonCompleted } from './utils.js';
 import { shapeDrawingController } from './ShapeDrawingController.js';
 import { penToolController } from './PenToolController.js';
 import { isInNodeEditMode, exitNodeEdit, makeSegmentCurve, makeSegmentLine, makeAllSegmentsCurves, makeSelectedSegmentsCurves, makeSelectedSegmentsLines, getSelectedNodes, clearNodeSelection, deleteSelectedNodes, addNodeAtSelectedSegment, makeNodesCusp, makeNodesSmooth, makeNodesAutoSmooth, getCurrentMode, TRANSFORM_MODE, enterNodeEditMode } from './InkscapeTransformMode.js';
@@ -182,6 +183,11 @@ function createLessonButtons() {
     document.body.appendChild(container);
   }
   container.innerHTML = '';
+  // Determine which lessons are unlocked via cookie progress
+  const completed = getCompletedLessons();
+  const highestCompleted = completed.length ? Math.max(...completed) : 0;
+  const maxUnlocked = Math.max(1, highestCompleted + 1);
+
   lessons.forEach(lesson => {
     const btn = document.createElement('button');
     btn.className = 'lesson-btn';
@@ -206,7 +212,19 @@ function createLessonButtons() {
     img.style.height = '28px';
     btn.appendChild(img);
 
+    // Disable button if lesson is locked (cannot skip ahead)
+    if (lesson.id > maxUnlocked) {
+      btn.disabled = true;
+      btn.style.opacity = '0.45';
+      btn.style.cursor = 'not-allowed';
+    }
+
     btn.addEventListener('click', async (e) => {
+      if (lesson.id > maxUnlocked) {
+        // prevent skipping ahead
+        console.log('[main] Lesson', lesson.id, 'is locked. Complete previous lessons first.');
+        return;
+      }
       const curMatch = (location.hash || '').match(/lesson=([\d.]+)/);
       const cur = curMatch ? parseFloat(curMatch[1]) : null;
       const target = lesson.id;
@@ -219,11 +237,12 @@ function createLessonButtons() {
           canvas.discardActiveObject();
         } catch (err) {}
         if (target === 1) await startTutorialDirect();
-        if (target === 2) await startLesson2();
-        if (target === 3) await startLesson3();
-        if (target === 4) await startLesson4();
-        if (target === 5) await startLesson5();
-        if (target === 6) await startLesson6();
+        if (target === 2) { const mod = await import('./tutorial.js'); await mod.startLesson2(); }
+        if (target === 3) { const mod = await import('./tutorial.js'); await mod.startLesson3(); }
+        if (target === 4) { const mod = await import('./tutorial.js'); await mod.startLesson4(); }
+        if (target === 5) { const mod = await import('./tutorial.js'); await mod.startLesson5(); }
+        if (target === 6) { const mod = await import('./Lesson6.js'); if (typeof mod.restartLesson6 === 'function') await mod.restartLesson6(); else await mod.startLesson6(); }
+        // mark as started/completed? keep UI updated after switching
         updateLessonButtons();
         return;
       }
@@ -248,15 +267,15 @@ function createLessonButtons() {
       if (target === 1) {
         await startTutorialDirect();
       } else if (target === 2) {
-        await startLesson2();
+        const mod = await import('./tutorial.js'); await mod.startLesson2();
       } else if (target === 3) {
-        await startLesson3();
+        const mod = await import('./tutorial.js'); await mod.startLesson3();
       } else if (target === 4) {
-        await startLesson4();
+        const mod = await import('./tutorial.js'); await mod.startLesson4();
       } else if (target === 5) {
-        await startLesson5();
+        const mod = await import('./tutorial.js'); await mod.startLesson5();
       } else if (target === 6) {
-        await startLesson6();
+        const mod = await import('./Lesson6.js'); await mod.startLesson6();
       }
       updateLessonButtons();
     });
@@ -270,6 +289,11 @@ function updateLessonButtons() {
   if (!container) return;
   const currentMatch = (location.hash || '').match(/lesson=([\d.]+)/);
   const currentLesson = currentMatch ? parseFloat(currentMatch[1]) : null;
+  // compute unlocked lessons from cookie
+  const completed = getCompletedLessons();
+  const highestCompleted = completed.length ? Math.max(...completed) : 0;
+  const maxUnlocked = Math.max(1, highestCompleted + 1);
+
   Array.from(container.children).forEach(child => {
     const btn = child;
     const lessonId = parseInt(btn.dataset.lesson, 10);
@@ -295,6 +319,16 @@ function updateLessonButtons() {
       span.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
       btn.style.position = 'relative';
       btn.appendChild(span);
+    }
+    // update locked appearance
+    if (lessonId > maxUnlocked) {
+      btn.disabled = true;
+      btn.style.opacity = '0.45';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
     }
   });
 }
@@ -327,6 +361,9 @@ function positionLessonButtons() {
 positionLessonButtons();
 window.addEventListener('resize', positionLessonButtons);
 window.addEventListener('hashchange', () => { updateLessonButtons(); positionLessonButtons(); });
+
+// Refresh lesson buttons when lesson progress changes elsewhere (no reload needed)
+window.addEventListener('lessons:updated', () => { updateLessonButtons(); positionLessonButtons(); });
 
 // Observe panel size/position changes (e.g., when panel content is updated) and reposition
 const panel = document.getElementById('panel');

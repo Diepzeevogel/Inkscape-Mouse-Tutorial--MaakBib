@@ -16,6 +16,7 @@ import { copyPasteController } from './CopyPasteController.js';
 import { undoRedoController } from './UndoRedoController.js';
 import { shapeDrawingController } from './ShapeDrawingController.js';
 import { penToolController } from './PenToolController.js';
+import { markLessonCompleted } from './utils.js';
 
 class Lesson6State {
   constructor() {
@@ -34,6 +35,7 @@ class Lesson6State {
     this.shapeDrawingExitHandler = null;  // Track shape drawing exit handler
     this.originalHoleStyle = null;
     this.animationController = null;
+    this.holeCompleted = false;
   }
 
 
@@ -57,6 +59,7 @@ class Lesson6State {
     this.shapeDrawingExitHandler = null;
     this.animationController = null;
     this.originalHoleStyle = null;
+    this.holeCompleted = false;
   }
 }
 
@@ -389,6 +392,8 @@ function checkAndSnapCircle(hole) {
       <p>De maakuil kan deze nu om zijn nek hangen!</p>
     `;
   }
+  // Mark hole as completed so subsequent UI actions don't revert instructions
+  try { lesson6State.holeCompleted = true; } catch (e) {}
   
   // Reveal the lightning visual and enable the pen tool for tracing
   try {
@@ -483,6 +488,36 @@ function checkAndSnapCircle(hole) {
           obj.setCoords();
           canvas.requestRenderAll();
           obj.set({ lockMovementX: true, lockMovementY: true });
+
+          // Prevent scaling and deletion: remove transform controls and lock scaling.
+          try {
+            obj.set({ hasControls: false, lockScalingX: true, lockScalingY: true, lockRotation: true, selectable: true, evented: true });
+            obj._isPlaced = true;
+            obj._lockedFromDelete = true;
+
+            // Attach a preservation handler that re-adds locked objects if accidentally removed
+            if (!lesson6State.preserveRemovalHandler) {
+              lesson6State.preserveRemovalHandler = (ev) => {
+                try {
+                  const removed = ev.target;
+                  if (!removed) return;
+                  if (removed._lockedFromDelete) {
+                    // Re-add the removed object to the canvas immediately
+                    setTimeout(() => {
+                      try {
+                        canvas.add(removed);
+                        if (typeof removed.setCoords === 'function') removed.setCoords();
+                        canvas.requestRenderAll();
+                      } catch (e) { /* ignore */ }
+                    }, 0);
+                  }
+                } catch (e) { /* ignore */ }
+              };
+              canvas.on('object:removed', lesson6State.preserveRemovalHandler);
+            }
+          } catch (err) {
+            console.warn('[Lesson6] Could not lock snapped pen object:', err);
+          }
 
           // Hide the target object and stop any pulse animation tied to it
           try {
@@ -590,9 +625,30 @@ function checkAndSnapCircle(hole) {
                     console.warn('[Lesson6] Error hiding lightning target after paste snap:', err);
                   }
 
-                  // Mark pasted as placed
+                  // Mark pasted as placed and lock it (prevent scaling/deletion)
                   pasted._isPasted = false;
                   pasted._isPlaced = true;
+                  try {
+                    pasted.set({ hasControls: false, lockScalingX: true, lockScalingY: true, lockRotation: true, lockMovementX: true, lockMovementY: true, selectable: true, evented: true });
+                    pasted._lockedFromDelete = true;
+                    // Ensure preserveRemovalHandler exists so deletion attempts are reversed
+                    if (!lesson6State.preserveRemovalHandler) {
+                      lesson6State.preserveRemovalHandler = (ev) => {
+                        try {
+                          const removed = ev.target;
+                          if (!removed) return;
+                          if (removed._lockedFromDelete) {
+                            setTimeout(() => {
+                              try { canvas.add(removed); if (typeof removed.setCoords === 'function') removed.setCoords(); canvas.requestRenderAll(); } catch (e) {}
+                            }, 0);
+                          }
+                        } catch (e) { /* ignore */ }
+                      };
+                      canvas.on('object:removed', lesson6State.preserveRemovalHandler);
+                    }
+                  } catch (err) {
+                    console.warn('[Lesson6] Could not lock pasted object after snap:', err);
+                  }
                   console.log('[Lesson6] Pasted copy snapped to target (dist:', nearestD.toFixed(1), ')');
 
                   // If both pasted copies have been placed, enable the text tool
@@ -644,9 +700,10 @@ function checkAndSnapCircle(hole) {
                               try {
                                 // Show final congratulations and a single big download button
                                 panel.innerHTML = `
-                                  <h3>Gefeliciteerd!</h3>
-                                  <p>Je hebt de basis van Inkscape geoefend en de badge voltooid.</p>
+                                  <h3>🎉 Gefeliciteerd!</h3>
+                                  <p>Je kent nu de basisfuncties van Inkscape en hebt de badge voltooid.</p>
                                   <p>Download de badge als een SVG-bestand via de knop hieronder.</p>
+                                  <p>Je kunt de badge later altijd opnieuw bewerken in Inkscape!</p>
                                 `;
                                 try {
                                   let bigDownload = document.getElementById('lesson6-download-btn');
@@ -715,8 +772,29 @@ function checkAndSnapCircle(hole) {
                                             group.setCoords();
 
                                             // Add group to temp canvas (clear any previous content)
-                                            tmpCanvas.clear();
-                                            tmpCanvas.add(group);
+                                      pasted._isPasted = false;
+                                      pasted._isPlaced = true;
+                                      // Prevent scaling and deletion of the placed copy
+                                      try {
+                                        pasted.set({ hasControls: false, lockScalingX: true, lockScalingY: true, lockRotation: true, selectable: true, evented: true });
+                                        pasted._lockedFromDelete = true;
+                                        if (!lesson6State.preserveRemovalHandler) {
+                                          lesson6State.preserveRemovalHandler = (ev) => {
+                                            try {
+                                              const removed = ev.target;
+                                              if (!removed) return;
+                                              if (removed._lockedFromDelete) {
+                                                setTimeout(() => {
+                                                  try { canvas.add(removed); if (typeof removed.setCoords === 'function') removed.setCoords(); canvas.requestRenderAll(); } catch (e) {}
+                                                }, 0);
+                                              }
+                                            } catch (e) {}
+                                          };
+                                          canvas.on('object:removed', lesson6State.preserveRemovalHandler);
+                                        }
+                                      } catch (err) {
+                                        console.warn('[Lesson6] Could not lock pasted object:', err);
+                                      }
                                             tmpCanvas.renderAll();
 
                                             const svg = tmpCanvas.toSVG();
@@ -785,6 +863,80 @@ function checkAndSnapCircle(hole) {
 
     lesson6State.penModifiedHandler = handlePenObjectModified;
     canvas.on('object:modified', handlePenObjectModified);
+    // Also check newly-created pen objects immediately after drawing
+    try {
+      lesson6State.penAddedHandler = handlePenObjectModified;
+      canvas.on('object:added', lesson6State.penAddedHandler);
+    } catch (err) {
+      console.warn('[Lesson6] Could not attach object:added pen handler:', err);
+    }
+    // Ensure pasted copies that are added and are already near targets get locked immediately
+    try {
+      lesson6State.pasteAddedHandler = (ev) => {
+        try {
+          const obj = ev.target;
+          if (!obj) return;
+          // If this object was just pasted (controller may set _isPasted)
+          const isPasted = !!obj._isPasted;
+          // Also consider objects that were placed programmatically
+          const alreadyPlaced = !!obj._isPlaced;
+          if (!isPasted && !alreadyPlaced) return;
+
+          const targets = [lesson6State.lightningTarget1, lesson6State.lightningTarget2, lesson6State.lightningTarget3].filter(Boolean);
+          if (targets.length === 0) return;
+
+          const objCenter = (typeof obj.getCenterPoint === 'function') ? obj.getCenterPoint() : { x: obj.left, y: obj.top };
+          let nearest = null;
+          let nd = Infinity;
+          targets.forEach(t => {
+            if (!t.visible) return;
+            const tCenter = (typeof t.getCenterPoint === 'function') ? t.getCenterPoint() : { x: t.left, y: t.top };
+            const dx = objCenter.x - tCenter.x;
+            const dy = objCenter.y - tCenter.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < nd) { nd = d; nearest = { target: t, center: tCenter }; }
+          });
+
+          const SNAP_MAX = 12;
+          if (nearest && nd <= SNAP_MAX) {
+            // Snap into place and lock the object
+            obj.set({ left: nearest.center.x, top: nearest.center.y, originX: 'center', originY: 'center' });
+            obj.setCoords();
+            canvas.requestRenderAll();
+            obj.set({ lockMovementX: true, lockMovementY: true, hasControls: false, lockScalingX: true, lockScalingY: true, lockRotation: true, selectable: true, evented: true });
+            obj._isPasted = false;
+            obj._isPlaced = true;
+            obj._lockedFromDelete = true;
+
+            // Hide the target and stop its pulse if applicable
+            try {
+              const tObj = nearest.target;
+              if (tObj) {
+                tObj.set({ visible: false, selectable: false, evented: false });
+                if (typeof tObj.setCoords === 'function') tObj.setCoords();
+              }
+            } catch (e) { /* ignore */ }
+
+            // Ensure preserveRemovalHandler exists so deletion attempts are reversed
+            if (!lesson6State.preserveRemovalHandler) {
+              lesson6State.preserveRemovalHandler = (ev2) => {
+                try {
+                  const removed = ev2.target;
+                  if (!removed) return;
+                  if (removed._lockedFromDelete) {
+                    setTimeout(() => { try { canvas.add(removed); if (typeof removed.setCoords === 'function') removed.setCoords(); canvas.requestRenderAll(); } catch (e) {} }, 0);
+                  }
+                } catch (e) {}
+              };
+              canvas.on('object:removed', lesson6State.preserveRemovalHandler);
+            }
+          }
+        } catch (err) { /* ignore */ }
+      };
+      canvas.on('object:added', lesson6State.pasteAddedHandler);
+    } catch (err) {
+      console.warn('[Lesson6] Could not attach paste-added handler:', err);
+    }
   } catch (err) {
     console.warn('[Lesson6] Could not enable pen tracing step:', err);
   }
@@ -837,6 +989,57 @@ export async function startLesson6() {
 
     // Create animation controller for this lesson and store on state
     lesson6State.animationController = new AnimationController(canvas);
+
+    // Monkey-patch canvas.remove to block removal of locked objects while lesson active
+    try {
+      if (!lesson6State._origCanvasRemove) {
+        lesson6State._origCanvasRemove = canvas.remove.bind(canvas);
+        canvas.remove = function(obj) {
+          try {
+            // If an array of objects, filter out locked ones
+            if (Array.isArray(obj)) {
+              const allowed = obj.filter(o => !(o && o._lockedFromDelete));
+              if (allowed.length === 0) return canvas;
+              return lesson6State._origCanvasRemove(allowed);
+            }
+            if (obj && obj._lockedFromDelete) {
+              console.warn('[Lesson6] Blocked removal of locked object');
+              return canvas;
+            }
+          } catch (e) { /* ignore */ }
+          return lesson6State._origCanvasRemove(obj);
+        };
+      }
+    } catch (err) {
+      console.warn('[Lesson6] Could not patch canvas.remove to protect locked objects:', err);
+    }
+
+    // Intercept Delete/Backspace while lesson is active to protect locked objects
+    try {
+      lesson6State.keydownHandler = (ev) => {
+        try {
+          const key = ev.key || ev.keyCode;
+          if (key === 'Delete' || key === 'Backspace' || key === 8 || key === 46) {
+            const active = (typeof canvas.getActiveObjects === 'function') ? canvas.getActiveObjects() : (canvas.getActiveObject() ? [canvas.getActiveObject()] : []);
+            if (active && active.some(o => o && o._lockedFromDelete)) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              /*try {
+                const panel = document.getElementById('panel');
+                if (panel) {
+                  const original = panel.innerHTML;
+                  panel.innerHTML = '<p style="color:#d9534f;"><strong>Dit object kan niet verwijderd worden.</strong></p>';
+                  setTimeout(() => { try { if (document.getElementById('panel')) document.getElementById('panel').innerHTML = original; } catch (e) {} }, 1400);
+                }
+              } catch (e) {}*/
+            }
+          }
+        } catch (e) { /* ignore */ }
+      };
+      window.addEventListener('keydown', lesson6State.keydownHandler, true);
+    } catch (err) {
+      console.warn('[Lesson6] Could not attach keydown protect handler:', err);
+    }
 
     // Load badge assets (badge, ink stains, hole)
     console.log('[Lesson6] Loading badge assets...');
@@ -1344,6 +1547,30 @@ export async function startLesson6() {
             ellipseTool.disabled = false;
             ellipseTool.setAttribute('aria-disabled', 'false');
           }
+
+          // If the hole has already been completed, ensure clicking the ellipse tool
+          // does not reset the aside panel back to the hole instructions. We add
+          // a capture-phase listener that preserves current panel content when
+          // `holeCompleted` is true.
+          try {
+            if (ellipseTool && !lesson6State._ellipsePreserveHandler) {
+              lesson6State._ellipsePreserveHandler = (ev) => {
+                try {
+                  if (!lesson6State.holeCompleted) return;
+                  const panelEl = document.getElementById('panel');
+                  if (!panelEl) return;
+                  const current = panelEl.innerHTML;
+                  // After other click handlers run, restore the panel content
+                  setTimeout(() => {
+                    try { panelEl.innerHTML = current; } catch (e) {}
+                  }, 0);
+                } catch (e) { /* ignore */ }
+              };
+              ellipseTool.addEventListener('click', lesson6State._ellipsePreserveHandler, true);
+            }
+          } catch (err) {
+            console.warn('[Lesson6] Could not attach ellipse preserve handler:', err);
+          }
           
           // Set up fill/stroke panel for drawing the circle (black stroke, no fill)
           lesson6State.fillStrokePanel.setFillColor(null);  // No fill
@@ -1498,6 +1725,31 @@ export function cleanupLesson6() {
     if (ellipseTool && lesson6State.shapeDrawingExitHandler) {
       ellipseTool.removeEventListener('click', lesson6State.shapeDrawingExitHandler);
     }
+    if (ellipseTool && lesson6State._ellipsePreserveHandler) {
+      try { ellipseTool.removeEventListener('click', lesson6State._ellipsePreserveHandler, true); } catch (e) { /* ignore */ }
+      lesson6State._ellipsePreserveHandler = null;
+    }
+    // Remove preserveRemovalHandler if attached
+    try {
+      if (lesson6State.preserveRemovalHandler) {
+        canvas.off('object:removed', lesson6State.preserveRemovalHandler);
+        lesson6State.preserveRemovalHandler = null;
+      }
+    } catch (e) { /* ignore */ }
+    // Remove pen added handler
+    try {
+      if (lesson6State.penAddedHandler) {
+        canvas.off('object:added', lesson6State.penAddedHandler);
+        lesson6State.penAddedHandler = null;
+      }
+    } catch (e) { /* ignore */ }
+    // Restore original canvas.remove if we patched it
+    try {
+      if (lesson6State._origCanvasRemove) {
+        try { canvas.remove = lesson6State._origCanvasRemove; } catch (e) { /* ignore */ }
+        lesson6State._origCanvasRemove = null;
+      }
+    } catch (e) { /* ignore */ }
   } catch (e) {
     console.warn('[Lesson6] Error removing ellipse tool handler:', e);
   }

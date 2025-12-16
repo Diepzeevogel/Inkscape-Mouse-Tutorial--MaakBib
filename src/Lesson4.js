@@ -15,6 +15,7 @@ import {
   LAYOUT,
   STYLE 
 } from './constants.js';
+import { markLessonCompleted } from './utils.js';
 
 class Lesson4State {
   constructor() {
@@ -455,9 +456,11 @@ function handleSuccess() {
   // Animate toolbox with double bounce
   if (lesson4State.objects.toolboxOpen) {
     animationController.doubleBounce(lesson4State.objects.toolboxOpen, () => {
+      try { markLessonCompleted(4); } catch (e) {}
       showNextButton();
     });
   } else {
+    try { markLessonCompleted(4); } catch (e) {}
     showNextButton();
   }
   
@@ -476,7 +479,10 @@ function showNextButton() {
   
   let button = document.getElementById('next-tutorial-btn-4');
   if (button) return;
-  
+
+  // Replace aside panel text with a short completion message
+  panel.innerHTML = '<p>Goed gedaan, je bent klaar voor de volgende les</p>';
+
   button = document.createElement('button');
   button.id = 'next-tutorial-btn-4';
   button.style.cssText = `

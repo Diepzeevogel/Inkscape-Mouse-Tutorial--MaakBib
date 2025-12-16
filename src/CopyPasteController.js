@@ -281,14 +281,32 @@ class CopyPasteController {
     if (activeObject.type === 'activeSelection') {
       const objects = activeObject.getObjects().slice(); // Clone array
       canvas.discardActiveObject();
+      let deleted = 0;
+      let skipped = 0;
       objects.forEach(obj => {
+        try {
+          if (obj && obj._lockedFromDelete) {
+            skipped++;
+            console.log('[CopyPaste] Skipped deletion of locked object:', obj.type || obj);
+            return;
+          }
+        } catch (e) { /* ignore */ }
         canvas.remove(obj);
+        deleted++;
       });
-      console.log('[CopyPaste] Deleted', objects.length, 'objects');
+      console.log('[CopyPaste] Deleted', deleted, 'objects', skipped ? `; skipped ${skipped} locked` : '');
     } else {
       // Single object
-      canvas.remove(activeObject);
-      console.log('[CopyPaste] Deleted object:', activeObject.type);
+      try {
+        if (activeObject && activeObject._lockedFromDelete) {
+          console.log('[CopyPaste] Skipped deletion of locked object:', activeObject.type);
+        } else {
+          canvas.remove(activeObject);
+          console.log('[CopyPaste] Deleted object:', activeObject.type);
+        }
+      } catch (e) {
+        console.warn('[CopyPaste] Error during delete:', e);
+      }
     }
     
     canvas.requestRenderAll();

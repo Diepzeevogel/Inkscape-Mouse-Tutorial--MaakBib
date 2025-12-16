@@ -19,6 +19,7 @@ import {
   LAYOUT,
   ANIMATION_DURATION
 } from './constants.js';
+import { markLessonCompleted } from './utils.js';
 
 class Lesson5State {
   constructor() {
@@ -416,7 +417,8 @@ function showCompletionMessage() {
       <p>Je bent nu klaar om te leren <strong>tekenen in Inkscape!</strong></p>
     `;
     
-    // Add next lesson button
+    // Add next lesson button and mark completion
+    try { markLessonCompleted(5); } catch (e) {}
     showNextButton();
   } catch (error) {
     console.warn('[Lesson5] Failed to show completion:', error);
@@ -432,7 +434,6 @@ function showNextButton() {
   
   let button = document.getElementById('next-tutorial-btn-5');
   if (button) return;
-  
   button = document.createElement('button');
   button.id = 'next-tutorial-btn-5';
   button.style.cssText = `

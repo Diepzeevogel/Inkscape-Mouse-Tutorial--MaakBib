@@ -25,6 +25,9 @@ class ShapeDrawingController {
     
     // Reference to FillStrokePanel for getting colors
     this.fillStrokePanel = null;
+
+    // Register selection listeners so dimension controls show on selection
+    this._registerSelectionListeners();
   }
 
   /**
@@ -51,12 +54,8 @@ class ShapeDrawingController {
     this.activeShapeType = shapeType;
     this.isEnabled = true;
 
-    // Make canvas non-selectable while drawing
+    // Make canvas non-selectable for marquee but keep objects evented/selectable
     canvas.selection = false;
-    canvas.forEachObject(obj => {
-      obj.selectable = false;
-      obj.evented = false;
-    });
 
     // Setup event handlers
     this.mouseDownHandler = this.onMouseDown.bind(this);
@@ -88,10 +87,6 @@ class ShapeDrawingController {
 
     // Restore canvas interactivity
     canvas.selection = true;
-    canvas.forEachObject(obj => {
-      obj.selectable = true;
-      obj.evented = true;
-    });
 
     // Remove dimension controls
     this.removeDimensionControls();
@@ -110,14 +105,9 @@ class ShapeDrawingController {
   createDimensionControls(shapeType) {
     const toolbar = document.getElementById('toolbar');
     if (!toolbar) return;
-
-    // Create container for dimension controls
-    const container = document.createElement('div');
-    container.id = 'dimension-controls';
-    container.className = 'dimension-controls';
-
-    if (shapeType === 'rect') {
-      container.innerHTML = `
+    // Reuse existing container if present to avoid duplicate listeners
+    let container = document.getElementById('dimension-controls');
+    const content = (shapeType === 'rect') ? `
         <div class="dimension-group">
           <label>B:</label>
           <input type="number" id="shape-width" min="0" step="0.1" value="0" />
@@ -126,9 +116,7 @@ class ShapeDrawingController {
           <label>H:</label>
           <input type="number" id="shape-height" min="0" step="0.1" value="0" />
         </div>
-      `;
-    } else if (shapeType === 'ellipse') {
-      container.innerHTML = `
+      ` : `
         <div class="dimension-group">
           <label>Rx:</label>
           <input type="number" id="shape-rx" min="0" step="0.1" value="0" />
@@ -138,22 +126,25 @@ class ShapeDrawingController {
           <input type="number" id="shape-ry" min="0" step="0.1" value="0" />
         </div>
       `;
+
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'dimension-controls';
+      container.className = 'dimension-controls';
+      // Insert after the brand element
+      const brand = toolbar.querySelector('.brand');
+      if (brand) {
+        brand.insertAdjacentElement('afterend', container);
+      } else {
+        toolbar.insertBefore(container, toolbar.firstChild);
+      }
+      // Nudge the controls slightly left to improve alignment with the toolbar
+      container.style.marginLeft = '-500px';
     }
 
-    // Insert after the brand element
-    const brand = toolbar.querySelector('.brand');
-    if (brand) {
-      brand.insertAdjacentElement('afterend', container);
-    } else {
-      toolbar.insertBefore(container, toolbar.firstChild);
-    }
-
+    // Update content and attach listeners
+    container.innerHTML = content;
     this.dimensionControls = container;
-
-    // Nudge the controls slightly left to improve alignment with the toolbar
-    container.style.marginLeft = '-500px';
-
-    // Attach input event listeners
     this.attachDimensionListeners();
   }
 
@@ -165,7 +156,10 @@ class ShapeDrawingController {
 
     const inputs = this.dimensionControls.querySelectorAll('input');
     inputs.forEach(input => {
-      input.addEventListener('change', () => {
+      // remove any existing handler by cloning the node (safe idempotent approach)
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      newInput.addEventListener('change', () => {
         this.updateShapeFromInputs();
       });
     });
@@ -188,6 +182,12 @@ class ShapeDrawingController {
     if (this.isDrawing) return;
 
     const pointer = canvas.getPointer(e.e);
+    // If user clicked an existing rect/ellipse, do not start a new shape.
+    const clicked = e.target || (e && e.subTargets && e.subTargets[0]);
+    if (clicked && (clicked.type === 'ellipse' || clicked.type === 'rect')) {
+      // Let normal selection/movement occur; do not start drawing a new shape
+      return;
+    }
     this.startX = pointer.x;
     this.startY = pointer.y;
     this.isDrawing = true;
@@ -310,17 +310,16 @@ class ShapeDrawingController {
   updateDimensionInputs(val1, val2) {
     if (!this.dimensionControls) return;
 
-    if (this.activeShapeType === 'rect') {
-      const widthInput = this.dimensionControls.querySelector('#shape-width');
-      const heightInput = this.dimensionControls.querySelector('#shape-height');
-      if (widthInput) widthInput.value = val1.toFixed(2);
-      if (heightInput) heightInput.value = val2.toFixed(2);
-    } else if (this.activeShapeType === 'ellipse') {
-      const rxInput = this.dimensionControls.querySelector('#shape-rx');
-      const ryInput = this.dimensionControls.querySelector('#shape-ry');
-      if (rxInput) rxInput.value = val1.toFixed(2);
-      if (ryInput) ryInput.value = val2.toFixed(2);
-    }
+    // Populate whichever inputs are present so controls work regardless of active tool
+    const widthInput = this.dimensionControls.querySelector('#shape-width');
+    const heightInput = this.dimensionControls.querySelector('#shape-height');
+    const rxInput = this.dimensionControls.querySelector('#shape-rx');
+    const ryInput = this.dimensionControls.querySelector('#shape-ry');
+
+    if (widthInput) widthInput.value = (typeof val1 === 'number') ? val1.toFixed(2) : '0.00';
+    if (heightInput) heightInput.value = (typeof val2 === 'number') ? val2.toFixed(2) : '0.00';
+    if (rxInput) rxInput.value = (typeof val1 === 'number') ? val1.toFixed(2) : '0.00';
+    if (ryInput) ryInput.value = (typeof val2 === 'number') ? val2.toFixed(2) : '0.00';
   }
 
   /**
@@ -329,41 +328,30 @@ class ShapeDrawingController {
   updateShapeFromInputs() {
     const activeObject = canvas.getActiveObject();
     if (!activeObject) return;
+    if (activeObject.type === 'rect') {
+      const widthInput = this.dimensionControls?.querySelector('#shape-width');
+      const heightInput = this.dimensionControls?.querySelector('#shape-height');
 
-    if (this.activeShapeType === 'rect' && activeObject.type === 'rect') {
-      const widthInput = this.dimensionControls.querySelector('#shape-width');
-      const heightInput = this.dimensionControls.querySelector('#shape-height');
-      
       if (widthInput && heightInput) {
         const width = parseFloat(widthInput.value) || 0;
         const height = parseFloat(heightInput.value) || 0;
-        
-        activeObject.set({
-          width: width,
-          height: height
-        });
+
+        activeObject.set({ width: width, height: height });
         activeObject.setCoords();
         canvas.requestRenderAll();
-        
-        // Fire modified event for undo/redo
         canvas.fire('object:modified', { target: activeObject });
       }
-    } else if (this.activeShapeType === 'ellipse' && activeObject.type === 'ellipse') {
-      const rxInput = this.dimensionControls.querySelector('#shape-rx');
-      const ryInput = this.dimensionControls.querySelector('#shape-ry');
-      
+    } else if (activeObject.type === 'ellipse') {
+      const rxInput = this.dimensionControls?.querySelector('#shape-rx');
+      const ryInput = this.dimensionControls?.querySelector('#shape-ry');
+
       if (rxInput && ryInput) {
         const rx = parseFloat(rxInput.value) || 0;
         const ry = parseFloat(ryInput.value) || 0;
-        
-        activeObject.set({
-          rx: rx,
-          ry: ry
-        });
+
+        activeObject.set({ rx: rx, ry: ry });
         activeObject.setCoords();
         canvas.requestRenderAll();
-        
-        // Fire modified event for undo/redo
         canvas.fire('object:modified', { target: activeObject });
       }
     }
@@ -374,13 +362,46 @@ class ShapeDrawingController {
    * Call this when selection changes
    */
   updateControlsForSelection(obj) {
-    if (!this.dimensionControls || !obj) return;
-
-    if (this.activeShapeType === 'rect' && obj.type === 'rect') {
-      this.updateDimensionInputs(obj.width * obj.scaleX, obj.height * obj.scaleY);
-    } else if (this.activeShapeType === 'ellipse' && obj.type === 'ellipse') {
-      this.updateDimensionInputs(obj.rx * obj.scaleX, obj.ry * obj.scaleY);
+    if (!obj) return;
+    if (obj.type === 'rect') {
+      this.createDimensionControls('rect');
+      this.updateDimensionInputs(obj.width * (obj.scaleX || 1), obj.height * (obj.scaleY || 1));
+    } else if (obj.type === 'ellipse') {
+      this.createDimensionControls('ellipse');
+      this.updateDimensionInputs((obj.rx || 0) * (obj.scaleX || 1), (obj.ry || 0) * (obj.scaleY || 1));
+    } else {
+      this.removeDimensionControls();
     }
+  }
+
+  // Show/hide dimension controls based on selection
+  _handleSelectionChanged = (opt) => {
+    try {
+      const active = canvas.getActiveObject ? canvas.getActiveObject() : null;
+      if (active && (active.type === 'rect' || active.type === 'ellipse')) {
+        const shapeType = active.type === 'rect' ? 'rect' : 'ellipse';
+        this.createDimensionControls(shapeType);
+        // Populate values
+        if (shapeType === 'rect') {
+          this.updateDimensionInputs(active.width * (active.scaleX || 1), active.height * (active.scaleY || 1));
+        } else {
+          this.updateDimensionInputs((active.rx || 0) * (active.scaleX || 1), (active.ry || 0) * (active.scaleY || 1));
+        }
+      } else {
+        // No relevant selection - remove controls
+        this.removeDimensionControls();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // Register selection listeners immediately so controls appear whenever selection changes
+  _registerSelectionListeners() {
+    try {
+      canvas.on('selection:created', this._handleSelectionChanged);
+      canvas.on('selection:updated', this._handleSelectionChanged);
+      canvas.on('selection:cleared', this._handleSelectionChanged);
+      canvas.on('object:selected', this._handleSelectionChanged);
+    } catch (e) { /* ignore */ }
   }
 }
 
