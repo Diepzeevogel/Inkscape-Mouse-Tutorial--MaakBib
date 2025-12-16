@@ -827,30 +827,13 @@ function checkAndSnapCircle(hole) {
                                             group.setCoords();
 
                                             // Add group to temp canvas (clear any previous content)
-                                      Pasted.delete(pasted);
-                                      Placed.set(pasted, true);
-                                      // Prevent scaling and deletion of the placed copy
-                                      try {
-                                        pasted.set({ hasControls: false, lockScalingX: true, lockScalingY: true, lockRotation: true, selectable: true, evented: true });
-                                        LockedFromDelete.set(pasted, true);
-                                        if (!lesson6State.preserveRemovalHandler) {
-                                          lesson6State.preserveRemovalHandler = (ev) => {
                                             try {
-                                              const removed = ev.target;
-                                              if (!removed) return;
-                                              if (LockedFromDelete.has(removed)) {
-                                                setTimeout(() => {
-                                                  try { canvas.add(removed); if (typeof removed.setCoords === 'function') removed.setCoords(); canvas.requestRenderAll(); } catch (e) {}
-                                                }, 0);
-                                              }
-                                            } catch (e) {}
-                                          };
-                                          canvas.on('object:removed', lesson6State.preserveRemovalHandler);
-                                        }
-                                      } catch (err) {
-                                        console.warn('[Lesson6] Could not lock pasted object:', err);
-                                      }
-                                            tmpCanvas.renderAll();
+                                              tmpCanvas.clear();
+                                              tmpCanvas.add(group);
+                                              tmpCanvas.renderAll();
+                                            } catch (e) {
+                                              console.warn('[Lesson6] Error preparing temp canvas for export:', e);
+                                            }
 
                                             const svg = tmpCanvas.toSVG();
                                             try { tmpCanvas.dispose && tmpCanvas.dispose(); } catch (e) {}
