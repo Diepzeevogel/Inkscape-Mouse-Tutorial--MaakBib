@@ -138,7 +138,7 @@ const selectButtonOverlay = createSelectOverlayButton(async () => {
   }
 
   // navigate to lesson 1 and initialize the lesson state
-  try { location.hash = 'lesson=1'; } catch (e) {}
+  try { window._lastProgrammaticLessonChange = 1; location.hash = 'lesson=1'; } catch (e) {}
   if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
   if (selectButtonOverlay && selectButtonOverlay.parentNode) selectButtonOverlay.parentNode.removeChild(selectButtonOverlay);
   if (selectTool) {
@@ -247,8 +247,8 @@ function createLessonButtons() {
         return;
       }
 
-      // switch to target lesson
-      try { location.hash = `lesson=${target}`; } catch (err) {}
+      // switch to target lesson (mark as programmatic so hashchange handler can ignore)
+      try { window._lastProgrammaticLessonChange = target; location.hash = `lesson=${target}`; } catch (err) {}
       // remove overlays
       try {
         if (welcomeOverlay && welcomeOverlay.parentNode) welcomeOverlay.parentNode.removeChild(welcomeOverlay);
@@ -361,6 +361,67 @@ function positionLessonButtons() {
 positionLessonButtons();
 window.addEventListener('resize', positionLessonButtons);
 window.addEventListener('hashchange', () => { updateLessonButtons(); positionLessonButtons(); });
+// Handle user-initiated back/forward navigation and start lessons accordingly.
+window.addEventListener('hashchange', async () => {
+  // Prevent re-entrancy when starting lessons triggers additional hashchange events
+  if (window._handlingHashChange) return;
+  window._handlingHashChange = true;
+  try {
+    // If this change was caused by our own programmatic navigation, ignore (buttons already started the lesson)
+    const match = (location.hash || '').match(/lesson=(\d+)/);
+    const target = match ? parseInt(match[1], 10) : null;
+    if (window._lastProgrammaticLessonChange && window._lastProgrammaticLessonChange === target) {
+      window._lastProgrammaticLessonChange = null;
+      updateLessonButtons();
+      positionLessonButtons();
+      return;
+    }
+
+    // If no lesson in the hash, nothing to do
+    if (!target) {
+      updateLessonButtons();
+      positionLessonButtons();
+      return;
+    }
+
+    // If this lesson is already active, treat as refresh: re-run init for that lesson
+    if (window._currentLesson === target) {
+      try {
+        if (target === 1) await startTutorialDirect();
+        else if (target === 2) { const mod = await import('./tutorial.js'); await mod.startLesson2(); }
+        else if (target === 3) { const mod = await import('./tutorial.js'); await mod.startLesson3(); }
+        else if (target === 4) { const mod = await import('./tutorial.js'); await mod.startLesson4(); }
+        else if (target === 5) { const mod = await import('./tutorial.js'); await mod.startLesson5(); }
+        else if (target === 6) { const mod = await import('./Lesson6.js'); if (typeof mod.restartLesson6 === 'function') await mod.restartLesson6(); else await mod.startLesson6(); }
+      } catch (err) { console.warn('[main] Error refreshing current lesson from hashchange:', err); }
+      updateLessonButtons();
+      positionLessonButtons();
+      return;
+    }
+
+    // Otherwise, switch to the requested lesson (user navigated with back/forward)
+    try {
+      // Clear canvas and cleanup any active lesson
+      try { const objs = canvas.getObjects().slice(); objs.forEach(o => canvas.remove(o)); canvas.discardActiveObject(); } catch (e) {}
+      try { if (window._currentLesson === 6) cleanupLesson6(); } catch (e) {}
+
+      if (target === 1) await startTutorialDirect();
+      else if (target === 2) { const mod = await import('./tutorial.js'); await mod.startLesson2(); }
+      else if (target === 3) { const mod = await import('./tutorial.js'); await mod.startLesson3(); }
+      else if (target === 4) { const mod = await import('./tutorial.js'); await mod.startLesson4(); }
+      else if (target === 5) { const mod = await import('./tutorial.js'); await mod.startLesson5(); }
+      else if (target === 6) { const mod = await import('./Lesson6.js'); await mod.startLesson6(); }
+
+      try { window._currentLesson = target; } catch (e) {}
+      updateLessonButtons();
+      positionLessonButtons();
+    } catch (err) {
+      console.warn('[main] Error handling user hashchange navigation:', err);
+    }
+  } finally {
+    window._handlingHashChange = false;
+  }
+});
 
 // Refresh lesson buttons when lesson progress changes elsewhere (no reload needed)
 window.addEventListener('lessons:updated', () => { updateLessonButtons(); positionLessonButtons(); });
