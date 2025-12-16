@@ -7,6 +7,7 @@
 import { canvas } from './canvas.js';
 import { register as registerEvent, unregisterAllForOwner } from './EventRegistry.js';
 import { KeyboardController } from './KeyboardController.js';
+import { LastPos } from './MetadataRegistry.js';
 
 class UndoRedoController {
   constructor() {
@@ -133,6 +134,21 @@ class UndoRedoController {
    */
   saveState() {
     if (!this.isRecording) return;
+    // Temporarily materialize LastPos into object properties so it can be serialized
+    const objsForTemp = [];
+    try {
+      canvas.getObjects().forEach(o => {
+        try {
+          if (typeof LastPos !== 'undefined' && LastPos && LastPos.has && LastPos.has(o)) {
+            const val = LastPos.get(o);
+            if (val !== undefined) {
+              o._lastPos = val;
+              objsForTemp.push(o);
+            }
+          }
+        } catch (e) { /* ignore */ }
+      });
+    } catch (e) { /* ignore */ }
 
     const json = canvas.toJSON([
       'perPixelTargetFind',
@@ -145,6 +161,11 @@ class UndoRedoController {
       'hoverCursor',
       '_lastPos'
     ]);
+
+    // Cleanup temporary _lastPos properties
+    try {
+      objsForTemp.forEach(o => { try { delete o._lastPos; } catch (e) {} });
+    } catch (e) { /* ignore */ }
 
     // Wrap the canvas JSON together with the current URL hash so undo/redo can restore lesson navigation
     const wrapper = {
@@ -232,6 +253,18 @@ class UndoRedoController {
     canvas.clear();
     canvas.loadFromJSON(canvasState, () => {
       canvas.requestRenderAll();
+
+      // Restore LastPos metadata from any _lastPos properties present in restored objects
+      try {
+        canvas.getObjects().forEach(o => {
+          try {
+            if (o && typeof o._lastPos !== 'undefined') {
+              try { LastPos.set(o, o._lastPos); } catch (e) {}
+              try { delete o._lastPos; } catch (e) {}
+            }
+          } catch (e) { /* ignore */ }
+        });
+      } catch (e) { /* ignore */ }
 
       // Restore URL hash if present in the saved state. Use replaceState to avoid adding extra history
       try {

@@ -60,7 +60,7 @@ Priority order (do earlier items first):
   - Ensure `enterNodeEditMode` returns an object that can be used by caller to `cleanup()`.
   - Replace direct control of `canvas.on` with owner-scoped `EventRegistry` registrations.
 
-- `src/tutorial.js` and `src/Lesson1Refactored.js` .. `src/Lesson6.js`
+- `src/tutorial.js` and `src/Lesson1.js` .. `src/Lesson6.js`
   - For each lesson file: identify all `canvas.on`, `window` and `document` listeners and replace with `EventRegistry.register(..., owner=lessonState)`.
   - Ensure `cleanup()` calls `EventRegistry.unregisterAllForOwner(lessonState)` and `AnimationController.stopAnimationsFor(lessonState)`.
   - Replace direct ad-hoc properties on objects with `MetadataRegistry` usage.

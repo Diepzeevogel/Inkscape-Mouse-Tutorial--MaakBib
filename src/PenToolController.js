@@ -7,6 +7,7 @@
 import { canvas } from './canvas.js';
 import { register as registerEvent, unregisterAllForOwner } from './EventRegistry.js';
 import { KeyboardController } from './KeyboardController.js';
+import { PrevInteractive } from './MetadataRegistry.js';
 
 class PenToolController {
   constructor() {
@@ -53,10 +54,8 @@ class PenToolController {
     // Make canvas non-selectable while drawing
     canvas.selection = false;
     canvas.forEachObject(obj => {
-      obj._wasSelectable = obj.selectable;
-      obj._wasEvented = obj.evented;
-      obj.selectable = false;
-      obj.evented = false;
+      try { PrevInteractive.set(obj, { selectable: !!obj.selectable, evented: !!obj.evented }); } catch (e) { /* ignore */ }
+      try { obj.selectable = false; obj.evented = false; } catch (e) { /* ignore */ }
     });
 
     // Setup event handlers (owner-scoped via EventRegistry / KeyboardController)
@@ -93,12 +92,14 @@ class PenToolController {
     // Restore canvas interactivity
     canvas.selection = true;
     canvas.forEachObject(obj => {
-      if (obj._wasSelectable !== undefined) {
-        obj.selectable = obj._wasSelectable;
-        obj.evented = obj._wasEvented;
-        delete obj._wasSelectable;
-        delete obj._wasEvented;
-      }
+      try {
+        if (PrevInteractive.has(obj)) {
+          const prev = PrevInteractive.get(obj) || {};
+          try { obj.selectable = !!prev.selectable; } catch (e) {}
+          try { obj.evented = !!prev.evented; } catch (e) {}
+          try { PrevInteractive.delete(obj); } catch (e) {}
+        }
+      } catch (e) { /* ignore */ }
     });
 
     // Reset cursor

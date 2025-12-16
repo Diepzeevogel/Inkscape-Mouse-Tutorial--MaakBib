@@ -23,3 +23,20 @@ export const LastPos = {
   has: (obj) => _lastPos.has(obj),
   delete: (obj) => _lastPos.delete(obj),
 };
+
+const _placed = new WeakMap();
+export const Placed = {
+  set: (obj, v = true) => _placed.set(obj, v),
+  has: (obj) => _placed.has(obj),
+  get: (obj) => _placed.get(obj),
+  delete: (obj) => _placed.delete(obj),
+};
+
+// Store previous interactive state (selectable/evented) for transient tool modes
+const _prevInteractive = new WeakMap();
+export const PrevInteractive = {
+  set: (obj, state) => _prevInteractive.set(obj, state),
+  get: (obj) => _prevInteractive.get(obj),
+  has: (obj) => _prevInteractive.has(obj),
+  delete: (obj) => _prevInteractive.delete(obj),
+};
