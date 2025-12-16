@@ -14,6 +14,7 @@ import { ASSETS, SVG_IDS, LESSON_FEATURES } from './constants.js';
 import { startLesson5, enterEndState } from './Lesson5.js';
 import { copyPasteController } from './CopyPasteController.js';
 import { undoRedoController } from './UndoRedoController.js';
+import { register as registerEvent, unregisterAllForOwner } from './EventRegistry.js';
 import { shapeDrawingController } from './ShapeDrawingController.js';
 import { penToolController } from './PenToolController.js';
 import { markLessonCompleted } from './utils.js';
@@ -938,14 +939,80 @@ function checkAndSnapCircle(hole) {
       }
     };
 
-    lesson6State.penModifiedHandler = handlePenObjectModified;
-    canvas.on('object:modified', handlePenObjectModified);
-    // Also check newly-created pen objects immediately after drawing
+    // Delay attaching snap handlers until the learner finishes the aside exercise.
+    // Store the pen handler for later invocation and register a light-weight
+    // owner-scoped `object:added` handler that shows the aside when a pen object
+    // is created. The aside's arrow will call `handlePenObjectModified` to perform
+    // the actual snapping and continuation to copy/paste.
     try {
-      lesson6State.penAddedHandler = handlePenObjectModified;
-      canvas.on('object:added', lesson6State.penAddedHandler);
+      lesson6State.pendingPenHandler = handlePenObjectModified;
+
+      const handlePenAddedForAside = (ev) => {
+        try {
+          const obj = ev.target;
+          if (!obj) return;
+          const isPenShape = (obj.type === 'polyline' || obj.type === 'polygon') && obj.penToolPoints;
+          if (!isPenShape) return;
+
+          // Remember the last drawn pen object and mark that we're awaiting the aside
+          lesson6State.lastPenObject = obj;
+          lesson6State.awaitingStrokeAside = true;
+
+          // Show the aside in the instruction panel (Stap 4) and surface the Fill & Stroke panel
+          try {
+            const panel = document.getElementById('panel');
+            if (panel) {
+              panel.innerHTML = `
+                <h3>Stap 4: Selecteer de streek (niet de vulling)</h3>
+                <p>Je getekende pad heeft standaard <strong>geen vulling</strong> en alleen een <strong>streek</strong> (de lijn). Om het pad te selecteren moet je precies op de lijn klikken — klikken in het lege binnengebied werkt niet.</p>
+                <p>Probeer nu het pad te selecteren (klik op de lijn). Gebruik het paneel rechts om de <strong>streek</strong> kleur en de <strong>vulling</strong> uit te proberen. Als je een vulling toevoegt, kun je daarna ook in het binnengebied klikken om te selecteren.</p>
+                <div style="margin-top:10px;">
+                  <button id="lesson6-continue-to-copypaste" aria-label="Volgende" style="width:100%;height:44px;background:#1976d2;color:white;border:none;border-radius:8px;cursor:pointer">
+                    <i class="fa-solid fa-arrow-right" style="font-size:1.4em;color:white;"></i>
+                  </button>
+                </div>
+              `;
+            }
+
+            // Ensure the Fill & Stroke panel is available and visible
+            if (!lesson6State.fillStrokePanel) {
+              lesson6State.fillStrokePanel = setupFillStrokePanel();
+            }
+            try { lesson6State.fillStrokePanel.show(); } catch (e) { /* ignore */ }
+
+            // Select the drawn object so the panel operates on it
+            try { canvas.setActiveObject(obj); canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+
+            // Wire the continue arrow to invoke the original pen handler (which performs snapping)
+            const cont = document.getElementById('lesson6-continue-to-copypaste');
+            if (cont) {
+              const onContinue = () => {
+                try {
+                  // Hide panel and mark that aside is done
+                  try { lesson6State.fillStrokePanel.hide(); } catch (e) {}
+                  lesson6State.awaitingStrokeAside = false;
+
+                  // Invoke the original pen handler to snap this object and continue flow
+                  try { handlePenObjectModified({ target: obj }); } catch (e) { /* ignore */ }
+
+                  // Unbind this continue handler
+                  try { cont.removeEventListener('click', onContinue); } catch (e) {}
+                } catch (e) { /* ignore */ }
+              };
+              cont.addEventListener('click', onContinue, { once: true });
+              lesson6State.continueButtonHandler = onContinue;
+            }
+          } catch (err) {
+            console.warn('[Lesson6] Error showing stroke-vs-fill aside:', err);
+          }
+        } catch (e) { /* ignore */ }
+      };
+
+      // Register the aside-triggering handler owner-scoped so it will be cleaned up on lesson exit
+      registerEvent(canvas, 'object:added', handlePenAddedForAside, lesson6State);
+      lesson6State.penAsideHandler = handlePenAddedForAside;
     } catch (err) {
-      console.warn('[Lesson6] Could not attach object:added pen handler:', err);
+      console.warn('[Lesson6] Could not attach pen aside handler:', err);
     }
     // Ensure pasted copies that are added and are already near targets get locked immediately
     try {

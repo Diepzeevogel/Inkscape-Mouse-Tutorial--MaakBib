@@ -237,7 +237,7 @@ class PenToolController {
     
     // Create polyline (no fill while drawing)
     this.currentPath = new fabric.Polyline(this.points, {
-      fill: 'transparent',
+      fill: null,
       stroke: strokeColor,
       strokeWidth: strokeWidth,
       selectable: false,
@@ -297,7 +297,7 @@ class PenToolController {
       : 0.3;
     
     this.currentPath = new fabric.Polyline([...this.points], {
-      fill: 'transparent',
+      fill: null,
       stroke: strokeColor,
       strokeWidth: strokeWidth,
       selectable: false,
@@ -390,7 +390,7 @@ class PenToolController {
     let finalShape;
     if (closed) {
       finalShape = new fabric.Polygon([...this.points], {
-        fill: fillColor,
+        fill: null,
         stroke: strokeColor,
         strokeWidth: strokeWidth,
         selectable: true,
@@ -399,7 +399,7 @@ class PenToolController {
       });
     } else {
       finalShape = new fabric.Polyline([...this.points], {
-        fill: 'transparent',
+        fill: null,
         stroke: strokeColor,
         strokeWidth: strokeWidth,
         selectable: true,
