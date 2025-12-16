@@ -5,6 +5,8 @@
  */
 
 import { canvas } from './canvas.js';
+import { register as registerEvent, unregisterAllForOwner } from './EventRegistry.js';
+import { KeyboardController } from './KeyboardController.js';
 
 class PenToolController {
   constructor() {
@@ -57,16 +59,16 @@ class PenToolController {
       obj.evented = false;
     });
 
-    // Setup event handlers
+    // Setup event handlers (owner-scoped via EventRegistry / KeyboardController)
     this.mouseDownHandler = this.onMouseDown.bind(this);
     this.mouseMoveHandler = this.onMouseMove.bind(this);
     this.keyDownHandler = this.onKeyDown.bind(this);
     this.dblClickHandler = this.onDoubleClick.bind(this);
 
-    canvas.on('mouse:down', this.mouseDownHandler);
-    canvas.on('mouse:move', this.mouseMoveHandler);
-    canvas.on('mouse:dblclick', this.dblClickHandler);
-    window.addEventListener('keydown', this.keyDownHandler);
+    registerEvent(canvas, 'mouse:down', this.mouseDownHandler, this);
+    registerEvent(canvas, 'mouse:move', this.mouseMoveHandler, this);
+    registerEvent(canvas, 'mouse:dblclick', this.dblClickHandler, this);
+    KeyboardController.register(this, this.keyDownHandler);
 
     // Change cursor
     canvas.defaultCursor = 'crosshair';
@@ -84,11 +86,9 @@ class PenToolController {
     // Cancel any in-progress drawing (don't auto-finish)
     this.cancelDrawing();
 
-    // Remove event handlers
-    canvas.off('mouse:down', this.mouseDownHandler);
-    canvas.off('mouse:move', this.mouseMoveHandler);
-    canvas.off('mouse:dblclick', this.dblClickHandler);
-    window.removeEventListener('keydown', this.keyDownHandler);
+    // Unregister owner-scoped handlers
+    unregisterAllForOwner(this);
+    KeyboardController.unregister(this);
 
     // Restore canvas interactivity
     canvas.selection = true;
