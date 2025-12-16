@@ -735,6 +735,24 @@ function checkAndSnapCircle(hole) {
                             `;
                             proceedBtn.addEventListener('click', async () => {
                               try {
+                                // Enable shape tool button and node editing for the remainder
+                                try {
+                                  const rectToolBtn = document.getElementById('tool-rect');
+                                  const nodeToolBtn = document.getElementById('tool-node');
+                                  if (rectToolBtn) {
+                                    rectToolBtn.disabled = false;
+                                    rectToolBtn.setAttribute('aria-disabled', 'false');
+                                  }
+                                  if (nodeToolBtn) {
+                                    nodeToolBtn.disabled = false;
+                                    nodeToolBtn.setAttribute('aria-disabled', 'false');
+                                  }
+                                  // Enable node editing feature flag for this lesson so the node tool becomes active
+                                  try { LESSON_FEATURES[6].NODE_EDITING = true; } catch (e) { /* ignore */ }
+                                  // Ensure shapeDrawingController can use the FillStrokePanel
+                                  try { shapeDrawingController.setFillStrokePanel(lesson6State.fillStrokePanel); } catch (e) {}
+                                } catch (e) { /* ignore */ }
+
                                 // Show final congratulations and a single big download button
                                 panel.innerHTML = `
                                   <h3>🎉 Gefeliciteerd!</h3>
@@ -1933,6 +1951,9 @@ export function cleanupLesson6() {
   } catch (e) { /* ignore */ }
 
   if (!lesson6State.isActive) return;
+
+  // Ensure any lesson-enabled features are turned off when cleaning up
+  try { if (LESSON_FEATURES && LESSON_FEATURES[6]) { LESSON_FEATURES[6].NODE_EDITING = false; } } catch (e) { /* ignore */ }
 
   console.log('[Lesson6] Cleaning up...');
   // If we patched canvas.remove earlier, restore it immediately so cleanup removals are not blocked
