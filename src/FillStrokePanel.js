@@ -191,69 +191,70 @@ export class FillStrokePanel {
         paintButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const mode = btn.dataset.mode;
+        import { register as registerEvent, unregisterAllForOwner } from './EventRegistry.js';
         // Update UI first so sliders enable/disable immediately
         this.setPaintModeUI(mode);
         // Then apply the mode to the active object
-        this.applyPaintMode(mode);
-      });
-    });
-
-    // RGB sliders
-    ['r', 'g', 'b'].forEach(channel => {
-      const slider = this.panelElement.querySelector(`#slider-${channel}`);
-      const input = this.panelElement.querySelector(`#input-${channel}`);
-      
-      slider.addEventListener('input', (e) => {
+            tabs.forEach(tab => {
+              registerEvent(tab, 'click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this.activeTab = tab.dataset.tab;
+                this.isStrokeMode = this.activeTab === 'stroke';
+                this.togglePanes();
+                this.updatePanelForCurrentObject();
+              }, this);
+            });
         const value = parseInt(e.target.value);
         input.value = value;
         this.currentColor[channel] = value;
-        this.updateColor();
-      });
-      
-      input.addEventListener('input', (e) => {
-        let value = parseInt(e.target.value) || 0;
-        value = Math.max(0, Math.min(255, value));
-        slider.value = value;
-        this.currentColor[channel] = value;
-        this.updateColor();
-      });
-    });
-
+            paintButtons.forEach(btn => {
+              registerEvent(btn, 'click', () => {
+                if (btn.classList.contains('disabled')) return;
+                paintButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const mode = btn.dataset.mode;
+                // Update UI first so sliders enable/disable immediately
+                this.setPaintModeUI(mode);
+                // Then apply the mode to the active object
+                this.applyPaintMode(mode);
+              }, this);
+            });
     // Hex input
     const hexInput = this.panelElement.querySelector('#hex-input');
     hexInput.addEventListener('input', (e) => {
       const hex = e.target.value.replace(/[^0-9a-fA-F]/g, '');
       if (hex.length === 6) {
         const rgb = this.hexToRgb(hex);
-        if (rgb) {
-          this.currentColor = rgb;
-          this.updateSliders();
-          this.applyColorToObject();
-        }
-      }
-    });
-
-    // Stroke style controls
-    const widthSlider = this.panelElement.querySelector('#stroke-width-slider');
-    const widthInput = this.panelElement.querySelector('#stroke-width-input');
-    const resetBtn = this.panelElement.querySelector('#stroke-style-reset');
-
-    const applyWidth = (val) => {
+              registerEvent(slider, 'input', (e) => {
+                const value = parseInt(e.target.value);
+                input.value = value;
+                this.currentColor[channel] = value;
+                this.updateColor();
+              }, this);
+      
+              registerEvent(input, 'input', (e) => {
+                let value = parseInt(e.target.value) || 0;
+                value = Math.max(0, Math.min(255, value));
+                slider.value = value;
+                this.currentColor[channel] = value;
+                this.updateColor();
+              }, this);
       if (!this.activeObject) return;
       const obj = this.activeObject;
       const center = obj.getCenterPoint();
       obj.set('strokeWidth', val);
-      // Keep the object visually in the same position
-      obj.setPositionByOrigin(center, 'center', 'center');
-      obj.setCoords();
-      this.canvas.renderAll();
-      
-      // Track last used stroke width
-      this.lastStrokeWidth = val;
-      
-      // Fire modified event so undo/redo can track this change
-      this.canvas.fire('object:modified', { target: obj });
-    };
+            registerEvent(hexInput, 'input', (e) => {
+              const hex = e.target.value.replace(/[^0-9a-fA-F]/g, '');
+              if (hex.length === 6) {
+                const rgb = this.hexToRgb(hex);
+                if (rgb) {
+                  this.currentColor = rgb;
+                  this.updateSliders();
+                  this.applyColorToObject();
+                }
+              }
+            }, this);
 
     widthSlider.addEventListener('input', (e) => {
       const v = parseFloat(e.target.value);
@@ -277,22 +278,22 @@ export class FillStrokePanel {
   /**
    * Show the panel with animation
    */
-  show() {
-    if (!this.enabled) return; // Respect disabled state
-    if (this.panelElement) {
-      // Use requestAnimationFrame to ensure CSS transition works
-      requestAnimationFrame(() => {
-        try {
-          if (this.panelElement) this.panelElement.classList.add('active');
-        } catch (e) { /* ignore if element was removed */ }
-      });
-    }
+            registerEvent(widthSlider, 'input', (e) => {
+              const v = parseFloat(e.target.value);
+              widthInput.value = v;
+              applyWidth(v);
+            }, this);
+            registerEvent(widthInput, 'input', (e) => {
+              const v = Math.max(0, Math.min(300, parseFloat(e.target.value) || 0));
+              widthSlider.value = v;
+              applyWidth(v);
+            }, this);
   }
-
-  /**
-   * Hide the panel with animation
-   */
-  hide() {
+            registerEvent(resetBtn, 'click', () => {
+              widthSlider.value = 0.3;
+              widthInput.value = 0.3;
+              applyWidth(0.3);
+            }, this);
     if (this.panelElement) {
       this.panelElement.classList.remove('active');
     }
@@ -301,6 +302,8 @@ export class FillStrokePanel {
   /**
    * Enable the panel so `show()` can make it visible.
    */
+                // Unregister any owner-scoped listeners
+                try { unregisterAllForOwner(this); } catch (e) {}
   enable() {
     this.enabled = true;
   }
